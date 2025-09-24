@@ -1,0 +1,521 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Générateur de Factures Professionnel</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <style>
+        :root {
+            --primary-blue: #2563eb;
+            --primary-blue-dark: #1d4ed8;
+            --secondary-gray: #6b7280;
+            --accent-green: #10b981;
+            --accent-red: #ef4444;
+            --background-gray: #f9fafb;
+        }
+        
+        body {
+            font-family: 'Inter', sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+        }
+        
+        .glass-effect {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+        
+        .logo-preview {
+            width: 80px;
+            height: 80px;
+            object-fit: contain;
+            border: 2px dashed #d1d5db;
+            border-radius: 8px;
+            padding: 8px;
+        }
+        
+        .logo-preview.has-logo {
+            border: 2px solid var(--primary-blue);
+        }
+        
+        .invoice-preview {
+            background: white;
+            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1);
+            border-radius: 12px;
+            overflow: hidden;
+        }
+        
+        .btn-primary {
+            background: linear-gradient(135deg, var(--primary-blue) 0%, var(--primary-blue-dark) 100%);
+            color: white;
+            padding: 0.75rem 1.5rem;
+            border-radius: 8px;
+            border: none;
+            font-weight: 600;
+            transition: all 0.3s ease;
+            cursor: pointer;
+        }
+        
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px rgba(37, 99, 235, 0.3);
+        }
+        
+        .btn-secondary {
+            background: white;
+            color: var(--primary-blue);
+            padding: 0.75rem 1.5rem;
+            border-radius: 8px;
+            border: 2px solid var(--primary-blue);
+            font-weight: 600;
+            transition: all 0.3s ease;
+            cursor: pointer;
+        }
+        
+        .btn-secondary:hover {
+            background: var(--primary-blue);
+            color: white;
+        }
+        
+        .form-input {
+            width: 100%;
+            padding: 0.75rem;
+            border: 2px solid #e5e7eb;
+            border-radius: 8px;
+            font-size: 0.95rem;
+            transition: all 0.3s ease;
+        }
+        
+        .form-input:focus {
+            outline: none;
+            border-color: var(--primary-blue);
+            box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+        }
+        
+        .article-row {
+            background: #f8fafc;
+            padding: 1rem;
+            border-radius: 8px;
+            margin-bottom: 1rem;
+            border: 1px solid #e5e7eb;
+            transition: all 0.3s ease;
+        }
+        
+        .article-row:hover {
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+        }
+        
+        .remove-btn {
+            background: var(--accent-red);
+            color: white;
+            border: none;
+            padding: 0.5rem;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+        
+        .remove-btn:hover {
+            background: #dc2626;
+            transform: scale(1.05);
+        }
+        
+        .add-btn {
+            background: var(--accent-green);
+            color: white;
+            border: none;
+            padding: 0.75rem 1.5rem;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: 600;
+            transition: all 0.3s ease;
+        }
+        
+        .add-btn:hover {
+            background: #059669;
+            transform: translateY(-1px);
+        }
+        
+        .status-paid {
+            background: #dcfce7;
+            color: #166534;
+            padding: 0.5rem 1rem;
+            border-radius: 6px;
+            font-weight: 600;
+        }
+        
+        .status-pending {
+            background: #fef3c7;
+            color: #92400e;
+            padding: 0.5rem 1rem;
+            border-radius: 6px;
+            font-weight: 600;
+        }
+        
+        .status-partial {
+            background: #dbeafe;
+            color: #1e40af;
+            padding: 0.5rem 1rem;
+            border-radius: 6px;
+            font-weight: 600;
+        }
+        
+        .tab-button {
+            padding: 0.75rem 1.5rem;
+            border: none;
+            background: transparent;
+            color: var(--secondary-gray);
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            border-bottom: 2px solid transparent;
+        }
+        
+        .tab-button.active {
+            color: var(--primary-blue);
+            border-bottom-color: var(--primary-blue);
+        }
+        
+        .tab-content {
+            display: none;
+        }
+        
+        .tab-content.active {
+            display: block;
+        }
+        
+        @media print {
+            .no-print {
+                display: none !important;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- Header -->
+    <header class="glass-effect shadow-lg">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+            <div class="flex items-center justify-between">
+                <div class="flex items-center">
+                    <div class="w-12 h-12 bg-gradient-to-r from-blue-500 to-purple-600 rounded-lg flex items-center justify-center mr-4">
+                        <i class="fas fa-file-invoice text-white text-xl"></i>
+                    </div>
+                    <div>
+                        <h1 class="text-2xl font-bold text-gray-900">Générateur de Factures</h1>
+                        <p class="text-gray-600">Application professionnelle en ligne</p>
+                    </div>
+                </div>
+                <div class="flex items-center space-x-4">
+                    <button id="settingsBtn" class="btn-secondary">
+                        <i class="fas fa-cog mr-2"></i>
+                        Paramètres
+                    </button>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <div class="grid grid-cols-1 xl:grid-cols-3 gap-8">
+            
+            <!-- Formulaire principal -->
+            <div class="xl:col-span-2">
+                <div class="glass-effect rounded-xl p-6 mb-6">
+                    <!-- Onglets -->
+                    <div class="flex space-x-1 mb-6 border-b border-gray-200">
+                        <button class="tab-button active" data-tab="client">
+                            <i class="fas fa-user mr-2"></i>
+                            Client
+                        </button>
+                        <button class="tab-button" data-tab="articles">
+                            <i class="fas fa-shopping-cart mr-2"></i>
+                            Articles
+                        </button>
+                        <button class="tab-button" data-tab="payment">
+                            <i class="fas fa-credit-card mr-2"></i>
+                            Paiement
+                        </button>
+                    </div>
+
+                    <!-- Onglet Client -->
+                    <div id="client-tab" class="tab-content active">
+                        <h2 class="text-xl font-semibold text-gray-900 mb-6">Informations Client</h2>
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-2">
+                                    Prénom *
+                                </label>
+                                <input type="text" id="clientFirstName" 
+                                       class="form-input"
+                                       placeholder="Ex: Jean" required>
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-2">
+                                    Nom *
+                                </label>
+                                <input type="text" id="clientLastName" 
+                                       class="form-input"
+                                       placeholder="Ex: Dupont" required>
+                            </div>
+                            <div class="md:col-span-2">
+                                <label class="block text-sm font-medium text-gray-700 mb-2">
+                                    Téléphone *
+                                </label>
+                                <input type="tel" id="clientPhone" 
+                                       class="form-input"
+                                       placeholder="Ex: +226 70 12 34 56" required>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Onglet Articles -->
+                    <div id="articles-tab" class="tab-content">
+                        <div class="flex justify-between items-center mb-6">
+                            <h2 class="text-xl font-semibold text-gray-900">Articles Commandés</h2>
+                            <button id="addArticle" class="add-btn">
+                                <i class="fas fa-plus mr-2"></i>
+                                Ajouter un article
+                            </button>
+                        </div>
+                        
+                        <div id="articlesContainer">
+                            <!-- Premier article par défaut -->
+                            <div class="article-row">
+                                <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+                                    <div class="md:col-span-2">
+                                        <label class="block text-sm font-medium text-gray-700 mb-2">
+                                            Nom de l'article *
+                                        </label>
+                                        <input type="text" class="article-name form-input"
+                                               placeholder="Ex: Consultation marketing" required>
+                                    </div>
+                                    <div>
+                                        <label class="block text-sm font-medium text-gray-700 mb-2">
+                                            Quantité *
+                                        </label>
+                                        <input type="number" class="article-quantity form-input"
+                                               placeholder="1" min="1" required>
+                                    </div>
+                                    <div>
+                                        <label class="block text-sm font-medium text-gray-700 mb-2">
+                                            Prix unitaire (FCFA) *
+                                        </label>
+                                        <input type="number" class="article-price form-input"
+                                               placeholder="0.00" step="0.01" min="0" required>
+                                    </div>
+                                </div>
+                                <div class="flex justify-end mt-4">
+                                    <button type="button" class="remove-btn"
+                                            onclick="removeArticle(this)" style="display: none;">
+                                        <i class="fas fa-trash mr-2"></i>
+                                        Supprimer
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Onglet Paiement -->
+                    <div id="payment-tab" class="tab-content">
+                        <h2 class="text-xl font-semibold text-gray-900 mb-6">Informations de Paiement</h2>
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-2">
+                                    Montant déjà payé (FCFA)
+                                </label>
+                                <input type="number" id="amountPaid" 
+                                       class="form-input"
+                                       placeholder="0.00" step="0.01" min="0" value="0">
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-2">
+                                    Statut de paiement
+                                </label>
+                                <select id="paymentStatus" class="form-input">
+                                    <option value="pending">En attente de paiement</option>
+                                    <option value="partial">Paiement partiel</option>
+                                    <option value="paid">Entièrement payé</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Boutons d'action -->
+                    <div class="flex flex-col sm:flex-row gap-4 mt-8">
+                        <button id="previewInvoice" class="btn-secondary flex-1">
+                            <i class="fas fa-eye mr-2"></i>
+                            Prévisualiser
+                        </button>
+                        <button id="generatePDF" class="btn-primary flex-1">
+                            <i class="fas fa-file-pdf mr-2"></i>
+                            Télécharger PDF
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Panneau latéral -->
+            <div class="xl:col-span-1">
+                <!-- Récapitulatif -->
+                <div class="glass-effect rounded-xl p-6 mb-6">
+                    <h3 class="text-lg font-semibold text-gray-900 mb-4">Récapitulatif</h3>
+                    <div class="space-y-4">
+                        <div class="flex justify-between items-center">
+                            <span class="text-gray-600">Sous-total :</span>
+                            <span class="font-semibold" id="subtotal">0,00 FCFA</span>
+                        </div>
+                        <div class="flex justify-between items-center">
+                            <span class="text-gray-600">Montant payé :</span>
+                            <span class="font-semibold text-green-600" id="paidAmount">0,00 FCFA</span>
+                        </div>
+                        <div class="border-t border-gray-200 pt-4">
+                            <div class="flex justify-between items-center">
+                                <span class="text-lg font-semibold text-gray-900">Reste à payer :</span>
+                                <span class="text-lg font-bold text-blue-600" id="remainingAmount">0,00 FCFA</span>
+                            </div>
+                        </div>
+                        <div class="mt-4" id="statusBadge">
+                            <span class="status-pending">
+                                <i class="fas fa-clock mr-2"></i>
+                                En attente
+                            </span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Informations client -->
+                <div class="glass-effect rounded-xl p-6 mb-6">
+                    <h3 class="text-lg font-semibold text-gray-900 mb-4">Client</h3>
+                    <div class="space-y-2">
+                        <p class="text-gray-700"><strong>Nom :</strong> <span id="previewClientName">-</span></p>
+                        <p class="text-gray-700"><strong>Téléphone :</strong> <span id="previewClientPhone">-</span></p>
+                    </div>
+                </div>
+
+                <!-- Liste des articles -->
+                <div class="glass-effect rounded-xl p-6">
+                    <h3 class="text-lg font-semibold text-gray-900 mb-4">Articles</h3>
+                    <div id="previewArticles" class="space-y-2">
+                        <p class="text-gray-500 italic">Aucun article ajouté</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal de prévisualisation -->
+    <div id="previewModal" class="fixed inset-0 bg-black bg-opacity-50 z-50 hidden">
+        <div class="flex items-center justify-center min-h-screen p-4">
+            <div class="bg-white rounded-xl shadow-2xl max-w-5xl w-full max-h-[90vh] overflow-hidden">
+                <div class="flex justify-between items-center p-6 border-b">
+                    <h3 class="text-xl font-semibold text-gray-900 flex items-center">
+                        <i class="fas fa-eye text-blue-600 mr-2"></i>
+                        Aperçu de la facture
+                    </h3>
+                    <button id="closePreview" class="text-gray-400 hover:text-gray-600">
+                        <i class="fas fa-times text-xl"></i>
+                    </button>
+                </div>
+                <div class="p-6 overflow-auto max-h-[70vh]">
+                    <div id="invoicePreview" class="invoice-preview p-8">
+                        <!-- Le contenu de la facture sera généré ici -->
+                    </div>
+                </div>
+                <div class="flex justify-end space-x-4 p-6 border-t">
+                    <button id="closePreviewBtn" class="btn-secondary">
+                        Fermer
+                    </button>
+                    <button id="downloadFromPreview" class="btn-primary">
+                        <i class="fas fa-download mr-2"></i>
+                        Télécharger PDF
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal des paramètres -->
+    <div id="settingsModal" class="fixed inset-0 bg-black bg-opacity-50 z-50 hidden">
+        <div class="flex items-center justify-center min-h-screen p-4">
+            <div class="bg-white rounded-xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-hidden">
+                <div class="flex justify-between items-center p-6 border-b">
+                    <h3 class="text-xl font-semibold text-gray-900 flex items-center">
+                        <i class="fas fa-cog text-blue-600 mr-2"></i>
+                        Paramètres de l'entreprise
+                    </h3>
+                    <button id="closeSettings" class="text-gray-400 hover:text-gray-600">
+                        <i class="fas fa-times text-xl"></i>
+                    </button>
+                </div>
+                <div class="p-6 overflow-auto max-h-[70vh]">
+                    <div class="space-y-6">
+                        <!-- Upload du logo -->
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">
+                                Logo de l'entreprise
+                            </label>
+                            <div class="flex items-center space-x-4">
+                                <img id="logoPreview" src="" alt="Logo" class="logo-preview" style="display: none;">
+                                <div class="flex-1">
+                                    <input type="file" id="logoUpload" accept="image/*" class="form-input">
+                                    <p class="text-sm text-gray-500 mt-1">Formats acceptés: PNG, JPG, SVG (max 2MB)</p>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Informations entreprise -->
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-2">
+                                    Nom de l'entreprise *
+                                </label>
+                                <input type="text" id="companyName" class="form-input" required>
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-2">
+                                    Téléphone *
+                                </label>
+                                <input type="tel" id="companyPhone" class="form-input" required>
+                            </div>
+                            <div class="md:col-span-2">
+                                <label class="block text-sm font-medium text-gray-700 mb-2">
+                                    Adresse *
+                                </label>
+                                <input type="text" id="companyAddress" class="form-input" required>
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-2">
+                                    Email
+                                </label>
+                                <input type="email" id="companyEmail" class="form-input">
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-2">
+                                    Site web
+                                </label>
+                                <input type="url" id="companyWebsite" class="form-input">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="flex justify-end space-x-4 p-6 border-t">
+                    <button id="cancelSettings" class="btn-secondary">
+                        Annuler
+                    </button>
+                    <button id="saveSettings" class="btn-primary">
+                        <i class="fas fa-save mr-2"></i>
+                        Sauvegarder
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>

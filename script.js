@@ -1,0 +1,922 @@
+// Configuration par défaut
+const DEFAULT_CONFIG = {
+    company: {
+        name: "Votre Entreprise",
+        phone: "",
+        address: "",
+        email: "",
+        website: ""
+    },
+    logo: null
+};
+
+// Variables globales
+let articleCount = 1;
+let invoiceCounter = 1;
+let currentTab = 'client';
+
+// Initialisation
+document.addEventListener('DOMContentLoaded', function() {
+    initializeApp();
+    loadSettings();
+    initializeEventListeners();
+    updatePreview();
+});
+
+// Initialiser l'application
+function initializeApp() {
+    // Charger les paramètres depuis localStorage
+    loadSettings();
+    
+    // Initialiser les onglets
+    initializeTabs();
+    
+    // Mettre à jour l'aperçu
+    updatePreview();
+}
+
+// Charger les paramètres depuis localStorage
+function loadSettings() {
+    const savedSettings = localStorage.getItem('invoiceSettings');
+    if (savedSettings) {
+        const settings = JSON.parse(savedSettings);
+        if (settings.company) {
+            document.getElementById('companyName').value = settings.company.name || '';
+            document.getElementById('companyPhone').value = settings.company.phone || '';
+            document.getElementById('companyAddress').value = settings.company.address || '';
+            document.getElementById('companyEmail').value = settings.company.email || '';
+            document.getElementById('companyWebsite').value = settings.company.website || '';
+        }
+        if (settings.logo) {
+            document.getElementById('logoPreview').src = settings.logo;
+            document.getElementById('logoPreview').style.display = 'block';
+            document.getElementById('logoPreview').classList.add('has-logo');
+        }
+    }
+}
+
+// Sauvegarder les paramètres dans localStorage
+function saveSettings() {
+    const settings = {
+        company: {
+            name: document.getElementById('companyName').value,
+            phone: document.getElementById('companyPhone').value,
+            address: document.getElementById('companyAddress').value,
+            email: document.getElementById('companyEmail').value,
+            website: document.getElementById('companyWebsite').value
+        },
+        logo: document.getElementById('logoPreview').src || null
+    };
+    localStorage.setItem('invoiceSettings', JSON.stringify(settings));
+}
+
+// Gestionnaires d'événements
+function initializeEventListeners() {
+    // Boutons d'onglets
+    document.querySelectorAll('.tab-button').forEach(button => {
+        button.addEventListener('click', function() {
+            switchTab(this.dataset.tab);
+        });
+    });
+    
+    // Boutons principaux
+    document.getElementById('settingsBtn').addEventListener('click', openSettings);
+    document.getElementById('addArticle').addEventListener('click', addArticle);
+    document.getElementById('previewInvoice').addEventListener('click', previewInvoice);
+    document.getElementById('generatePDF').addEventListener('click', generatePDF);
+    
+    // Modal de prévisualisation
+    document.getElementById('closePreview').addEventListener('click', closePreviewModal);
+    document.getElementById('closePreviewBtn').addEventListener('click', closePreviewModal);
+    document.getElementById('downloadFromPreview').addEventListener('click', generatePDF);
+    
+    // Modal des paramètres
+    document.getElementById('closeSettings').addEventListener('click', closeSettingsModal);
+    document.getElementById('cancelSettings').addEventListener('click', closeSettingsModal);
+    document.getElementById('saveSettings').addEventListener('click', saveSettings);
+    
+    // Upload du logo
+    document.getElementById('logoUpload').addEventListener('change', handleLogoUpload);
+    
+    // Fermer les modals en cliquant à l'extérieur
+    document.getElementById('previewModal').addEventListener('click', function(e) {
+        if (e.target === this) closePreviewModal();
+    });
+    document.getElementById('settingsModal').addEventListener('click', function(e) {
+        if (e.target === this) closeSettingsModal();
+    });
+    
+    // Mise à jour en temps réel
+    document.getElementById('clientFirstName').addEventListener('input', updatePreview);
+    document.getElementById('clientLastName').addEventListener('input', updatePreview);
+    document.getElementById('clientPhone').addEventListener('input', updatePreview);
+    document.getElementById('amountPaid').addEventListener('input', updatePreview);
+    document.getElementById('paymentStatus').addEventListener('change', updatePreview);
+    
+    // Écouter les changements dans les articles
+    document.addEventListener('input', function(e) {
+        if (e.target.classList.contains('article-name') || 
+            e.target.classList.contains('article-quantity') || 
+            e.target.classList.contains('article-price')) {
+            updatePreview();
+        }
+    });
+}
+
+// Gestion des onglets
+function initializeTabs() {
+    switchTab('client');
+}
+
+function switchTab(tabName) {
+    // Désactiver tous les onglets
+    document.querySelectorAll('.tab-button').forEach(btn => btn.classList.remove('active'));
+    document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
+    
+    // Activer l'onglet sélectionné
+    document.querySelector(`[data-tab="${tabName}"]`).classList.add('active');
+    document.getElementById(`${tabName}-tab`).classList.add('active');
+    
+    currentTab = tabName;
+}
+
+// Gestion du logo
+function handleLogoUpload(event) {
+    const file = event.target.files[0];
+    if (file) {
+        // Vérifier la taille du fichier (max 2MB)
+        if (file.size > 2 * 1024 * 1024) {
+            alert('Le fichier est trop volumineux. Taille maximale: 2MB');
+            return;
+        }
+        
+        const reader = new FileReader();
+        reader.onload = function(e) {
+            const logoPreview = document.getElementById('logoPreview');
+            logoPreview.src = e.target.result;
+            logoPreview.style.display = 'block';
+            logoPreview.classList.add('has-logo');
+        };
+        reader.readAsDataURL(file);
+    }
+}
+
+// Gestion des modals
+function openSettings() {
+    document.getElementById('settingsModal').classList.remove('hidden');
+}
+
+function closeSettingsModal() {
+    document.getElementById('settingsModal').classList.add('hidden');
+}
+
+// Sauvegarder les paramètres
+function saveSettings() {
+    // Valider les champs obligatoires
+    const companyName = document.getElementById('companyName').value.trim();
+    const companyPhone = document.getElementById('companyPhone').value.trim();
+    const companyAddress = document.getElementById('companyAddress').value.trim();
+    
+    if (!companyName) {
+        alert('Veuillez saisir le nom de l\'entreprise.');
+        document.getElementById('companyName').focus();
+        return;
+    }
+    
+    if (!companyPhone) {
+        alert('Veuillez saisir le téléphone de l\'entreprise.');
+        document.getElementById('companyPhone').focus();
+        return;
+    }
+    
+    if (!companyAddress) {
+        alert('Veuillez saisir l\'adresse de l\'entreprise.');
+        document.getElementById('companyAddress').focus();
+        return;
+    }
+    
+    // Sauvegarder les paramètres
+    const settings = {
+        company: {
+            name: companyName,
+            phone: companyPhone,
+            address: companyAddress,
+            email: document.getElementById('companyEmail').value.trim(),
+            website: document.getElementById('companyWebsite').value.trim()
+        },
+        logo: document.getElementById('logoPreview').src || null
+    };
+    
+    localStorage.setItem('invoiceSettings', JSON.stringify(settings));
+    
+    // Fermer la modal
+    closeSettingsModal();
+    
+    // Afficher un message de succès
+    showSuccessMessage('Paramètres sauvegardés avec succès !');
+}
+
+function closePreviewModal() {
+    document.getElementById('previewModal').classList.add('hidden');
+}
+
+// Gestion des articles
+function addArticle() {
+    const container = document.getElementById('articlesContainer');
+    const newArticle = document.createElement('div');
+    newArticle.className = 'article-row';
+    newArticle.innerHTML = `
+        <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+            <div class="md:col-span-2">
+                <label class="block text-sm font-medium text-gray-700 mb-2">
+                    Nom de l'article *
+                </label>
+                <input type="text" class="article-name form-input"
+                       placeholder="Ex: Consultation marketing" required>
+            </div>
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-2">
+                    Quantité *
+                </label>
+                <input type="number" class="article-quantity form-input"
+                       placeholder="1" min="1" required>
+            </div>
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-2">
+                    Prix unitaire (FCFA) *
+                </label>
+                <input type="number" class="article-price form-input"
+                       placeholder="0.00" step="0.01" min="0" required>
+            </div>
+        </div>
+        <div class="flex justify-end mt-4">
+            <button type="button" class="remove-btn"
+                        onclick="removeArticle(this)">
+                <i class="fas fa-trash mr-2"></i>
+                Supprimer
+                </button>
+        </div>
+    `;
+    
+    container.appendChild(newArticle);
+    articleCount++;
+    updatePreview();
+    updateRemoveButtons();
+}
+
+function removeArticle(button) {
+    button.closest('.article-row').remove();
+    updateRemoveButtons();
+    updatePreview();
+}
+
+function updateRemoveButtons() {
+    const articles = document.querySelectorAll('.article-row');
+    const removeButtons = document.querySelectorAll('.remove-btn');
+    
+    removeButtons.forEach(button => {
+        button.style.display = articles.length > 1 ? 'block' : 'none';
+    });
+}
+
+// Obtenir les données des articles
+function getArticlesData() {
+    const articles = [];
+    const articleRows = document.querySelectorAll('.article-row');
+    
+    articleRows.forEach(row => {
+        const name = row.querySelector('.article-name').value.trim();
+        const quantity = parseFloat(row.querySelector('.article-quantity').value) || 0;
+        const price = parseFloat(row.querySelector('.article-price').value) || 0;
+        
+        if (name && quantity > 0 && price >= 0) {
+            articles.push({
+                name: name,
+                quantity: quantity,
+                price: price,
+                total: quantity * price
+            });
+        }
+    });
+    
+    return articles;
+}
+
+// Mettre à jour l'aperçu
+function updatePreview() {
+    updateClientInfo();
+    updateArticlesList();
+    updateCalculations();
+}
+
+function updateClientInfo() {
+    const firstName = document.getElementById('clientFirstName').value || '';
+    const lastName = document.getElementById('clientLastName').value || '';
+    const phone = document.getElementById('clientPhone').value || '';
+    
+    const fullName = `${firstName} ${lastName}`.trim() || '-';
+    
+    document.getElementById('previewClientName').textContent = fullName;
+    document.getElementById('previewClientPhone').textContent = phone || '-';
+}
+
+function updateArticlesList() {
+    const articles = getArticlesData();
+    const previewContainer = document.getElementById('previewArticles');
+    
+    if (articles.length === 0) {
+        previewContainer.innerHTML = '<p class="text-gray-500 italic">Aucun article ajouté</p>';
+        return;
+    }
+    
+    let html = '';
+    articles.forEach((article, index) => {
+        const total = article.quantity * article.price;
+        html += `
+            <div class="bg-white p-3 rounded-lg border-l-4 border-blue-500 shadow-sm">
+                <div class="flex justify-between items-start">
+                    <div class="flex-1">
+                        <p class="font-medium text-gray-800">${article.name}</p>
+                        <p class="text-sm text-gray-600">Qté: ${article.quantity} × ${formatPrice(article.price)}</p>
+                    </div>
+                    <div class="text-right">
+                        <p class="font-semibold text-gray-900">${formatPrice(total)}</p>
+                    </div>
+                </div>
+            </div>
+        `;
+    });
+    
+    previewContainer.innerHTML = html;
+}
+
+function updateCalculations() {
+    const articles = getArticlesData();
+    const amountPaid = parseFloat(document.getElementById('amountPaid').value) || 0;
+    
+    const subtotal = articles.reduce((sum, article) => sum + article.total, 0);
+    const remaining = Math.max(0, subtotal - amountPaid);
+    
+    document.getElementById('subtotal').textContent = formatPrice(subtotal);
+    document.getElementById('paidAmount').textContent = formatPrice(amountPaid);
+    document.getElementById('remainingAmount').textContent = formatPrice(remaining);
+    
+    // Mettre à jour le statut
+    updatePaymentStatus(subtotal, amountPaid);
+}
+
+function updatePaymentStatus(subtotal, amountPaid) {
+    const statusBadge = document.getElementById('statusBadge');
+    let statusClass, statusText, statusIcon;
+    
+    if (amountPaid === 0) {
+        statusClass = 'status-pending';
+        statusText = 'En attente de paiement';
+        statusIcon = 'fas fa-clock';
+    } else if (amountPaid >= subtotal) {
+        statusClass = 'status-paid';
+        statusText = 'Entièrement payé';
+        statusIcon = 'fas fa-check-circle';
+    } else {
+        statusClass = 'status-partial';
+        statusText = 'Paiement partiel';
+        statusIcon = 'fas fa-exclamation-triangle';
+    }
+    
+    statusBadge.innerHTML = `
+        <span class="${statusClass}">
+            <i class="${statusIcon} mr-2"></i>
+            ${statusText}
+        </span>
+    `;
+}
+
+// Formater le prix
+function formatPrice(amount) {
+    // Formater le nombre sans espaces ni slashes
+    const formatted = Math.round(amount).toLocaleString('fr-FR', {
+        minimumFractionDigits: 0,
+        maximumFractionDigits: 0,
+        useGrouping: false
+    });
+    return formatted + ' FCFA';
+}
+
+// Prévisualiser la facture
+function previewInvoice() {
+    if (!validateForm()) {
+        return;
+    }
+    
+    const invoiceData = getInvoiceData();
+    const previewHTML = generateInvoiceHTML(invoiceData);
+    
+    document.getElementById('invoicePreview').innerHTML = previewHTML;
+    document.getElementById('previewModal').classList.remove('hidden');
+}
+
+// Obtenir les données de la facture
+function getInvoiceData() {
+    const settings = JSON.parse(localStorage.getItem('invoiceSettings') || '{}');
+    
+    return {
+        company: settings.company || DEFAULT_CONFIG.company,
+        logo: settings.logo,
+        client: {
+            firstName: document.getElementById('clientFirstName').value,
+            lastName: document.getElementById('clientLastName').value,
+            phone: document.getElementById('clientPhone').value
+        },
+        articles: getArticlesData(),
+        payment: {
+            amountPaid: parseFloat(document.getElementById('amountPaid').value) || 0,
+            status: document.getElementById('paymentStatus').value
+        }
+    };
+}
+
+// Générer le HTML de la facture
+function generateInvoiceHTML(data) {
+    const articles = data.articles;
+    const subtotal = articles.reduce((sum, article) => sum + article.total, 0);
+    const remaining = Math.max(0, subtotal - data.payment.amountPaid);
+    const currentDate = new Date().toLocaleDateString('fr-FR');
+    const invoiceNumber = `FAC-${new Date().getFullYear()}-${String(invoiceCounter).padStart(4, '0')}`;
+    
+    return `
+        <div class="max-w-4xl mx-auto bg-white shadow-2xl" style="font-family: 'Arial', sans-serif;">
+            <!-- En-tête professionnel -->
+            <div class="bg-gradient-to-r from-blue-600 to-blue-800 text-white p-8">
+                <div class="flex items-start justify-between">
+                    <div class="flex items-start">
+                        ${data.logo ? `
+                            <div class="bg-white p-3 rounded-lg mr-6 shadow-lg">
+                                <img src="${data.logo}" alt="Logo" class="w-20 h-20 object-contain">
+                            </div>
+                        ` : `
+                            <div class="bg-white p-3 rounded-lg mr-6 shadow-lg">
+                                <div class="w-20 h-20 bg-blue-600 text-white rounded-lg flex items-center justify-center">
+                                    <span class="text-2xl font-bold">${data.company.name.charAt(0)}</span>
+                                </div>
+                            </div>
+                        `}
+                        <div class="mt-2">
+                            <h1 class="text-3xl font-bold mb-2">${data.company.name}</h1>
+                            <div class="space-y-1 text-blue-100">
+                                <p class="text-sm"><i class="fas fa-map-marker-alt mr-2"></i>${data.company.address}</p>
+                                <p class="text-sm"><i class="fas fa-phone mr-2"></i>${data.company.phone}</p>
+                                ${data.company.email ? `<p class="text-sm"><i class="fas fa-envelope mr-2"></i>${data.company.email}</p>` : ''}
+                                ${data.company.website ? `<p class="text-sm"><i class="fas fa-globe mr-2"></i>${data.company.website}</p>` : ''}
+                            </div>
+                        </div>
+                    </div>
+                    <div class="text-right">
+                        <h2 class="text-4xl font-bold mb-4">FACTURE</h2>
+                        <div class="bg-white bg-opacity-20 p-4 rounded-lg">
+                            <p class="text-lg font-semibold">N° ${invoiceNumber}</p>
+                            <p class="text-sm">Date: ${currentDate}</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Informations client -->
+            <div class="p-8 bg-gray-50">
+                <h3 class="text-xl font-bold text-blue-600 mb-4 flex items-center">
+                    <i class="fas fa-user mr-2"></i>
+                    FACTURÉ À:
+                </h3>
+                <div class="bg-white p-6 rounded-lg border-l-4 border-blue-500 shadow-sm">
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                            <p class="text-gray-700 mb-2"><strong class="text-gray-900">Nom complet:</strong></p>
+                            <p class="text-lg font-semibold text-gray-900">${data.client.firstName} ${data.client.lastName}</p>
+                    </div>
+                    <div>
+                            <p class="text-gray-700 mb-2"><strong class="text-gray-900">Téléphone:</strong></p>
+                            <p class="text-lg text-gray-900">${data.client.phone}</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Tableau des articles professionnel -->
+            <div class="px-8 pb-8">
+                <h3 class="text-xl font-bold text-gray-900 mb-4 flex items-center">
+                    <i class="fas fa-shopping-cart mr-2"></i>
+                    DÉTAILS DE LA COMMANDE
+                </h3>
+                <div class="overflow-hidden rounded-xl shadow-2xl border border-gray-200">
+                    <table class="w-full border-collapse">
+                    <thead>
+                            <tr class="bg-gradient-to-r from-blue-600 to-blue-700 text-white">
+                                <th class="p-5 text-left font-bold text-sm uppercase tracking-wider">Désignation du produit/service</th>
+                                <th class="p-5 text-center font-bold text-sm uppercase tracking-wider w-24">Quantité</th>
+                                <th class="p-5 text-right font-bold text-sm uppercase tracking-wider w-32">Prix unitaire</th>
+                                <th class="p-5 text-right font-bold text-sm uppercase tracking-wider w-32">Sous-total</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${articles.map((article, index) => `
+                                <tr class="${index % 2 === 0 ? 'bg-white' : 'bg-gray-50'} hover:bg-blue-50 transition-colors border-b border-gray-200">
+                                    <td class="p-5">
+                                        <div class="font-semibold text-gray-900 text-base">${article.name}</div>
+                                    </td>
+                                    <td class="p-5 text-center">
+                                        <span class="inline-flex items-center justify-center w-10 h-10 bg-blue-100 text-blue-800 rounded-full text-sm font-bold">
+                                            ${article.quantity}
+                                        </span>
+                                    </td>
+                                    <td class="p-5 text-right font-semibold text-gray-900 text-base">
+                                        ${formatPrice(article.price)}
+                                    </td>
+                                    <td class="p-5 text-right font-bold text-gray-900 text-base">
+                                        ${formatPrice(article.total)}
+                                    </td>
+                            </tr>
+                        `).join('')}
+                    </tbody>
+                </table>
+                </div>
+            </div>
+            
+            <!-- Récapitulatif professionnel -->
+            <div class="px-8 pb-8">
+                <div class="flex justify-end">
+                    <div class="bg-gradient-to-r from-gray-50 to-blue-50 p-8 rounded-xl border-l-4 border-blue-500 shadow-lg w-96">
+                        <h3 class="text-xl font-bold text-gray-900 mb-6 flex items-center">
+                            <i class="fas fa-calculator mr-2"></i>
+                            RÉCAPITULATIF
+                        </h3>
+                        <div class="space-y-4">
+                            <div class="flex justify-between items-center py-2">
+                                <span class="text-gray-600 font-medium">Sous-total:</span>
+                                <span class="font-bold text-gray-900 text-lg">${formatPrice(subtotal)}</span>
+                            </div>
+                            <div class="flex justify-between items-center py-2">
+                                <span class="text-gray-600 font-medium">Montant payé:</span>
+                                <span class="font-bold text-green-600 text-lg">${formatPrice(data.payment.amountPaid)}</span>
+                            </div>
+                            <hr class="border-gray-300 my-4">
+                            <div class="flex justify-between items-center py-3 bg-blue-600 text-white px-4 rounded-lg">
+                                <span class="font-bold text-lg">RESTE À PAYER:</span>
+                                <span class="font-bold text-xl">${formatPrice(remaining)}</span>
+                            </div>
+                        </div>
+                        ${data.payment.status === 'paid' ? `
+                            <div class="mt-6 text-center">
+                                <div class="inline-flex items-center justify-center w-24 h-24 bg-green-500 text-white rounded-full text-xl font-bold shadow-lg">
+                                    <i class="fas fa-check mr-2"></i>
+                                    PAYÉ
+                                </div>
+                            </div>
+                        ` : ''}
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Pied de page professionnel -->
+            <div class="bg-gray-900 text-white p-8">
+                <div class="text-center">
+                    <h4 class="text-xl font-bold mb-2">Merci pour votre confiance !</h4>
+                    <p class="text-gray-300 mb-4">${data.company.name}</p>
+                    <div class="border-t border-gray-700 pt-4">
+                        <p class="text-sm text-gray-400">Conditions générales de vente disponibles sur demande</p>
+                        <p class="text-sm text-gray-400 mt-1">Pour toute question, contactez-nous au ${data.company.phone}</p>
+                    </div>
+            </div>
+            </div>
+        </div>
+    `;
+}
+
+// Générer le PDF
+function generatePDF() {
+    if (!validateForm()) {
+        return;
+    }
+    
+    const invoiceData = getInvoiceData();
+    const { jsPDF } = window.jspdf;
+    const doc = new jsPDF();
+    
+    // Configuration de la page A4
+    const pageWidth = doc.internal.pageSize.getWidth();
+    const pageHeight = doc.internal.pageSize.getHeight();
+    
+    // Couleurs
+    const primaryBlue = [37, 99, 235];
+    const darkBlue = [29, 78, 216];
+    const lightGray = [249, 250, 251];
+    
+    let yPosition = 20;
+    
+    // === EN-TÊTE CORPORATE PROFESSIONNEL ===
+    // Fond bleu corporate
+    doc.setFillColor(...primaryBlue);
+    doc.rect(0, 0, pageWidth, 60, 'F');
+    
+    // Logo professionnel
+    if (invoiceData.logo) {
+        try {
+            // Conteneur blanc carré pour le logo
+            doc.setFillColor(255, 255, 255);
+            doc.rect(20, 15, 40, 40, 'F');
+            doc.setDrawColor(0, 0, 0);
+            doc.setLineWidth(1);
+            doc.rect(20, 15, 40, 40);
+            doc.addImage(invoiceData.logo, 'PNG', 25, 20, 30, 30);
+        } catch (e) {
+            console.log('Erreur ajout logo:', e);
+            // Logo textuel simple
+            doc.setFillColor(255, 255, 255);
+            doc.rect(20, 15, 40, 40, 'F');
+            doc.setDrawColor(0, 0, 0);
+            doc.setLineWidth(1);
+            doc.rect(20, 15, 40, 40);
+            doc.setFontSize(20);
+            doc.setFont('helvetica', 'bold');
+            doc.setTextColor(...primaryBlue);
+            doc.text(invoiceData.company.name.charAt(0), 40, 38, { align: 'center' });
+        }
+    } else {
+        // Logo textuel simple
+        doc.setFillColor(255, 255, 255);
+        doc.rect(20, 15, 40, 40, 'F');
+        doc.setDrawColor(0, 0, 0);
+        doc.setLineWidth(1);
+        doc.rect(20, 15, 40, 40);
+        doc.setFontSize(20);
+        doc.setFont('helvetica', 'bold');
+        doc.setTextColor(...primaryBlue);
+        doc.text(invoiceData.company.name.charAt(0), 40, 38, { align: 'center' });
+    }
+    
+    // Nom de l'entreprise
+    doc.setFontSize(18);
+    doc.setFont('helvetica', 'bold');
+    doc.setTextColor(255, 255, 255);
+    doc.text(invoiceData.company.name, 75, 25);
+    
+    // Informations de contact
+    doc.setFontSize(8);
+    doc.setFont('helvetica', 'normal');
+    doc.setTextColor(255, 255, 255);
+    doc.text(`Adresse: ${invoiceData.company.address}`, 75, 35);
+    doc.text(`Tel: ${invoiceData.company.phone}`, 75, 40);
+    if (invoiceData.company.email) {
+        doc.text(`Email: ${invoiceData.company.email}`, 75, 45);
+    }
+    if (invoiceData.company.website) {
+        doc.text(`Site: ${invoiceData.company.website}`, 75, 50);
+    }
+    
+    // Section FACTURE
+    doc.setFontSize(20);
+    doc.setFont('helvetica', 'bold');
+    doc.setTextColor(255, 255, 255);
+    doc.text('FACTURE', pageWidth - 20, 25, { align: 'right' });
+    
+    // Numéro de facture
+    doc.setFontSize(10);
+    doc.setFont('helvetica', 'bold');
+    doc.setTextColor(255, 255, 255);
+    const invoiceNumber = `FAC-${new Date().getFullYear()}-${String(invoiceCounter).padStart(4, '0')}`;
+    doc.text(`N° ${invoiceNumber}`, pageWidth - 20, 35, { align: 'right' });
+    
+    // Date
+    doc.setFontSize(9);
+    doc.setFont('helvetica', 'normal');
+    doc.setTextColor(255, 255, 255);
+    const currentDate = new Date().toLocaleDateString('fr-FR');
+    doc.text(`Date: ${currentDate}`, pageWidth - 20, 42, { align: 'right' });
+    
+    // Ligne de séparation
+    doc.setDrawColor(255, 255, 255);
+    doc.setLineWidth(1);
+    doc.line(0, 58, pageWidth, 58);
+    
+    // === INFORMATIONS CLIENT ===
+    yPosition = 75;
+    
+    // Titre section client
+    doc.setFontSize(14);
+    doc.setFont('helvetica', 'bold');
+    doc.setTextColor(...primaryBlue);
+    doc.text('FACTURE A:', 20, yPosition);
+    
+    // Conteneur client
+    doc.setFillColor(248, 250, 252);
+    doc.rect(20, yPosition + 5, pageWidth - 40, 35, 'F');
+    doc.setDrawColor(...primaryBlue);
+    doc.setLineWidth(3);
+    doc.line(20, yPosition + 5, 20, yPosition + 40);
+    
+    yPosition += 15;
+    doc.setFontSize(11);
+    doc.setFont('helvetica', 'bold');
+    doc.setTextColor(0, 0, 0);
+    doc.text('Nom complet:', 30, yPosition);
+    doc.setFont('helvetica', 'normal');
+    doc.text(`${invoiceData.client.firstName} ${invoiceData.client.lastName}`, 30, yPosition + 6);
+    
+    doc.setFont('helvetica', 'bold');
+    doc.text('Telephone:', 30, yPosition + 12);
+    doc.setFont('helvetica', 'normal');
+    doc.text(invoiceData.client.phone, 30, yPosition + 18);
+    
+    // === TABLEAU DES ARTICLES ===
+    yPosition += 45;
+    drawArticlesTable(doc, invoiceData.articles, yPosition, pageWidth);
+    
+    // === RÉCAPITULATIF PROFESSIONNEL ===
+    const articles = invoiceData.articles;
+    const subtotal = articles.reduce((sum, article) => sum + article.total, 0);
+    const remaining = Math.max(0, subtotal - invoiceData.payment.amountPaid);
+    const totalY = yPosition + (articles.length * 10) + 30;
+    
+    // Conteneur récapitulatif
+    doc.setFillColor(248, 250, 252);
+    doc.rect(pageWidth - 100, totalY - 10, 80, 30, 'F');
+    doc.setDrawColor(37, 99, 235);
+    doc.setLineWidth(3);
+    doc.line(pageWidth - 100, totalY - 10, pageWidth - 100, totalY + 20);
+    
+    // Titre récapitulatif
+    doc.setFontSize(11);
+    doc.setFont('helvetica', 'bold');
+    doc.setTextColor(0, 0, 0);
+    doc.text('RECAPITULATIF', pageWidth - 95, totalY - 5);
+    
+    doc.setFontSize(9);
+    doc.setFont('helvetica', 'normal');
+    doc.setTextColor(0, 0, 0);
+    
+    // Ligne sous-total
+    doc.text('Sous-total:', pageWidth - 95, totalY + 3);
+    doc.text(formatPrice(subtotal), pageWidth - 15, totalY + 3, { align: 'right' });
+    
+    // Ligne montant payé
+    doc.text('Montant payé:', pageWidth - 95, totalY + 8);
+    doc.text(formatPrice(invoiceData.payment.amountPaid), pageWidth - 15, totalY + 8, { align: 'right' });
+    
+    // Ligne reste à payer (en gras et bleu)
+    doc.setFillColor(37, 99, 235);
+    doc.rect(pageWidth - 100, totalY + 12, 80, 6, 'F');
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(10);
+    doc.setTextColor(255, 255, 255);
+    doc.text('RESTE A PAYER:', pageWidth - 95, totalY + 16);
+    doc.text(formatPrice(remaining), pageWidth - 15, totalY + 16, { align: 'right' });
+    
+    // === PIED DE PAGE ===
+    const footerY = pageHeight - 30;
+    doc.setFontSize(8);
+    doc.setFont('helvetica', 'normal');
+    doc.setTextColor(100, 100, 100);
+    doc.text(`Merci pour votre confiance – ${invoiceData.company.name}`, pageWidth / 2, footerY, { align: 'center' });
+    doc.text('Conditions générales de vente disponibles sur demande', pageWidth / 2, footerY + 6, { align: 'center' });
+    
+    // === TÉLÉCHARGER LE PDF ===
+    const cleanClientName = `${invoiceData.client.firstName}_${invoiceData.client.lastName}`.replace(/[^a-zA-Z0-9_]/g, '');
+    const fileName = `Facture_${cleanClientName}_${invoiceNumber}.pdf`;
+    doc.save(fileName);
+    
+    // Incrémenter le compteur
+    invoiceCounter++;
+    
+    // Fermer la modal si elle est ouverte
+    closePreviewModal();
+    
+    // Message de succès
+    showSuccessMessage();
+}
+
+// Dessiner le tableau des articles
+function drawArticlesTable(doc, articles, startY, pageWidth) {
+    let y = startY;
+    
+    // Titre section articles
+    doc.setFontSize(14);
+    doc.setFont('helvetica', 'bold');
+    doc.setTextColor(0, 0, 0);
+    doc.text('DETAILS DE LA COMMANDE', 20, y);
+    y += 12;
+    
+    // En-tête du tableau avec dégradé
+    doc.setFontSize(10);
+    doc.setFont('helvetica', 'bold');
+    doc.setTextColor(255, 255, 255);
+    
+    // Fond bleu dégradé pour l'en-tête
+    doc.setFillColor(37, 99, 235);
+    doc.rect(20, y - 10, pageWidth - 40, 12, 'F');
+    
+    // Bordures épaisses
+    doc.setDrawColor(37, 99, 235);
+    doc.setLineWidth(2);
+    doc.rect(20, y - 10, pageWidth - 40, 12);
+    
+    // En-têtes des colonnes en majuscules
+    doc.text('DESIGNATION', 25, y);
+    doc.text('QTÉ', 100, y);
+    doc.text('PRIX UNIT.', 130, y);
+    doc.text('TOTAL', pageWidth - 25, y, { align: 'right' });
+    
+    y += 12;
+    
+    // Articles avec design amélioré
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(10);
+    articles.forEach((article, index) => {
+        // Fond alterné plus visible
+        if (index % 2 === 0) {
+            doc.setFillColor(255, 255, 255);
+            doc.rect(20, y - 10, pageWidth - 40, 12, 'F');
+        } else {
+            doc.setFillColor(248, 250, 252);
+            doc.rect(20, y - 10, pageWidth - 40, 12, 'F');
+        }
+        
+        // Bordures visibles
+        doc.setDrawColor(200, 200, 200);
+        doc.setLineWidth(1);
+        doc.rect(20, y - 10, pageWidth - 40, 12);
+        
+        // Contenu avec styles améliorés
+        doc.setTextColor(0, 0, 0);
+        doc.setFont('helvetica', 'bold');
+        doc.text(article.name, 25, y);
+        
+        // Quantité simple
+        doc.setTextColor(0, 0, 0);
+        doc.setFont('helvetica', 'bold');
+        doc.text(article.quantity.toString(), 100, y);
+        
+        // Prix et total
+        doc.setFont('helvetica', 'bold');
+        doc.setTextColor(0, 0, 0);
+        doc.text(formatPrice(article.price), 130, y);
+        doc.text(formatPrice(article.total), pageWidth - 25, y, { align: 'right' });
+        
+        y += 12;
+    });
+}
+
+// Valider le formulaire
+function validateForm() {
+    const firstName = document.getElementById('clientFirstName').value.trim();
+    const lastName = document.getElementById('clientLastName').value.trim();
+    const phone = document.getElementById('clientPhone').value.trim();
+    const articles = getArticlesData();
+    
+    if (!firstName) {
+        alert('Veuillez saisir le prénom du client.');
+        document.getElementById('clientFirstName').focus();
+        return false;
+    }
+    
+    if (!lastName) {
+        alert('Veuillez saisir le nom du client.');
+        document.getElementById('clientLastName').focus();
+        return false;
+    }
+    
+    if (!phone) {
+        alert('Veuillez saisir le numéro de téléphone du client.');
+        document.getElementById('clientPhone').focus();
+        return false;
+    }
+    
+    if (articles.length === 0) {
+        alert('Veuillez ajouter au moins un article.');
+        return false;
+    }
+    
+    return true;
+}
+
+// Afficher un message de succès
+function showSuccessMessage(message = 'Facture générée avec succès !') {
+    const notification = document.createElement('div');
+    notification.className = 'fixed top-4 right-4 bg-green-500 text-white px-6 py-3 rounded-lg shadow-lg z-50 transform translate-x-full transition-transform duration-300';
+    notification.innerHTML = `
+        <div class="flex items-center">
+            <i class="fas fa-check-circle mr-2"></i>
+            <span>${message}</span>
+        </div>
+    `;
+    
+    document.body.appendChild(notification);
+    
+    setTimeout(() => {
+        notification.style.transform = 'translateX(0)';
+    }, 100);
+    
+    setTimeout(() => {
+        notification.style.transform = 'translateX(100%)';
+        setTimeout(() => {
+            document.body.removeChild(notification);
+        }, 300);
+    }, 3000);
+}
