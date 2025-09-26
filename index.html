@@ -275,45 +275,117 @@
 
                     <!-- Onglet Articles -->
                     <div id="articles-tab" class="tab-content">
-                        <div class="flex justify-between items-center mb-6">
+                        <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-4">
                             <h2 class="text-xl font-semibold text-gray-900">Articles Commandés</h2>
-                            <button id="addArticle" class="add-btn">
+                            <button id="addArticle" class="add-btn w-full sm:w-auto">
                                 <i class="fas fa-plus mr-2"></i>
-                                Ajouter un article
+                                <span class="hidden sm:inline">Ajouter un article</span>
+                                <span class="sm:hidden">Ajouter</span>
                             </button>
+                        </div>
+                        
+                        <!-- Barre de recherche et filtres -->
+                        <div class="mb-6 p-4 bg-gray-50 rounded-lg">
+                            <div class="flex flex-col sm:flex-row gap-4">
+                                <div class="flex-1">
+                                    <input type="text" id="searchArticles" 
+                                           class="form-input w-full"
+                                           placeholder="🔍 Rechercher un article...">
+                                </div>
+                                <div class="flex gap-2">
+                                    <button id="sortByName" class="btn-secondary text-sm">
+                                        <i class="fas fa-sort-alpha-down mr-1"></i>
+                                        Nom
+                                    </button>
+                                    <button id="sortByPrice" class="btn-secondary text-sm">
+                                        <i class="fas fa-sort-numeric-down mr-1"></i>
+                                        Prix
+                                    </button>
+                                </div>
+                            </div>
                         </div>
                         
                         <div id="articlesContainer">
                             <!-- Premier article par défaut -->
-                            <div class="article-row">
-                                <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
-                                    <div class="md:col-span-2">
+                            <div class="article-row bg-white border border-gray-200 rounded-lg p-4 mb-4 shadow-sm hover:shadow-md transition-shadow">
+                                <div class="grid grid-cols-1 lg:grid-cols-12 gap-4 items-end">
+                                    <!-- Nom de l'article -->
+                                    <div class="lg:col-span-6">
                                         <label class="block text-sm font-medium text-gray-700 mb-2">
+                                            <i class="fas fa-tag mr-1 text-blue-500"></i>
                                             Nom de l'article *
                                         </label>
-                                        <input type="text" class="article-name form-input"
+                                        <input type="text" class="article-name form-input w-full"
                                                placeholder="Ex: Consultation marketing" required>
                                     </div>
-                                    <div>
+                                    
+                                    <!-- Quantité -->
+                                    <div class="lg:col-span-2">
                                         <label class="block text-sm font-medium text-gray-700 mb-2">
+                                            <i class="fas fa-hashtag mr-1 text-green-500"></i>
                                             Quantité *
                                         </label>
-                                        <input type="number" class="article-quantity form-input"
-                                               placeholder="1" min="1" required>
+                                        <div class="relative">
+                                            <input type="number" class="article-quantity form-input w-full pr-8"
+                                                   placeholder="1" min="1" required>
+                                            <div class="absolute right-2 top-1/2 transform -translate-y-1/2 flex flex-col">
+                                                <button type="button" class="quantity-btn text-xs text-gray-500 hover:text-blue-500" onclick="adjustQuantity(this, 1)">
+                                                    <i class="fas fa-chevron-up"></i>
+                                                </button>
+                                                <button type="button" class="quantity-btn text-xs text-gray-500 hover:text-blue-500" onclick="adjustQuantity(this, -1)">
+                                                    <i class="fas fa-chevron-down"></i>
+                                                </button>
+                                            </div>
+                                        </div>
                                     </div>
-                                    <div>
+                                    
+                                    <!-- Prix unitaire -->
+                                    <div class="lg:col-span-3">
                                         <label class="block text-sm font-medium text-gray-700 mb-2">
+                                            <i class="fas fa-dollar-sign mr-1 text-purple-500"></i>
                                             Prix unitaire (FCFA) *
                                         </label>
-                                        <input type="number" class="article-price form-input"
+                                        <input type="number" class="article-price form-input w-full"
                                                placeholder="0.00" step="0.01" min="0" required>
                                     </div>
+                                    
+                                    <!-- Actions -->
+                                    <div class="lg:col-span-1 flex justify-end">
+                                        <button type="button" class="remove-btn text-red-500 hover:text-red-700 p-2"
+                                                onclick="removeArticle(this)" style="display: none;">
+                                            <i class="fas fa-trash"></i>
+                                        </button>
+                                    </div>
                                 </div>
-                                <div class="flex justify-end mt-4">
-                                    <button type="button" class="remove-btn"
-                                            onclick="removeArticle(this)" style="display: none;">
-                                        <i class="fas fa-trash mr-2"></i>
-                                        Supprimer
+                                
+                                <!-- Total calculé -->
+                                <div class="mt-4 pt-4 border-t border-gray-100">
+                                    <div class="flex justify-between items-center">
+                                        <span class="text-sm text-gray-600">Total pour cet article:</span>
+                                        <span class="article-total text-lg font-bold text-blue-600">0 FCFA</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Résumé rapide -->
+                        <div class="mt-6 p-4 bg-blue-50 rounded-lg border border-blue-200">
+                            <div class="flex flex-col sm:flex-row justify-between items-center gap-4">
+                                <div class="text-center sm:text-left">
+                                    <div class="text-sm text-blue-600 font-medium">Résumé des articles</div>
+                                    <div class="text-lg font-bold text-blue-800">
+                                        <span id="totalArticles">0</span> article(s) - 
+                                        <span id="totalAmount">0 FCFA</span>
+                                    </div>
+                                </div>
+                                <div class="flex gap-2">
+                                    <button id="duplicateLast" class="btn-secondary text-sm" style="display: none;">
+                                        <i class="fas fa-copy mr-1"></i>
+                                        Dupliquer
+                                    </button>
+                                    <button id="clearAll" class="btn-secondary text-sm text-red-600 hover:text-red-700">
+                                        <i class="fas fa-trash-alt mr-1"></i>
+                                        Tout effacer
                                     </button>
                                 </div>
                             </div>

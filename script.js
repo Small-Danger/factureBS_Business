@@ -31,8 +31,9 @@ function initializeApp() {
     // Initialiser les onglets
     initializeTabs();
     
-    // Mettre à jour l'aperçu
+    // Mettre à jour l'aperçu et le résumé
     updatePreview();
+    updateArticlesSummary();
 }
 
 // Charger les paramètres depuis localStorage
@@ -89,6 +90,13 @@ function initializeEventListeners() {
     document.getElementById('closePreview').addEventListener('click', closePreviewModal);
     document.getElementById('closePreviewBtn').addEventListener('click', closePreviewModal);
     document.getElementById('downloadFromPreview').addEventListener('click', generatePDF);
+    
+    // Nouvelles fonctionnalités pour les articles
+    document.getElementById('searchArticles').addEventListener('input', searchArticles);
+    document.getElementById('sortByName').addEventListener('click', sortArticlesByName);
+    document.getElementById('sortByPrice').addEventListener('click', sortArticlesByPrice);
+    document.getElementById('duplicateLast').addEventListener('click', duplicateLastArticle);
+    document.getElementById('clearAll').addEventListener('click', clearAllArticles);
     
     // Modal des paramètres
     document.getElementById('closeSettings').addEventListener('click', closeSettingsModal);
@@ -224,50 +232,238 @@ function closePreviewModal() {
 function addArticle() {
     const container = document.getElementById('articlesContainer');
     const newArticle = document.createElement('div');
-    newArticle.className = 'article-row';
+    newArticle.className = 'article-row bg-white border border-gray-200 rounded-lg p-4 mb-4 shadow-sm hover:shadow-md transition-shadow';
     newArticle.innerHTML = `
-        <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
-            <div class="md:col-span-2">
+        <div class="grid grid-cols-1 lg:grid-cols-12 gap-4 items-end">
+            <!-- Nom de l'article -->
+            <div class="lg:col-span-6">
                 <label class="block text-sm font-medium text-gray-700 mb-2">
+                    <i class="fas fa-tag mr-1 text-blue-500"></i>
                     Nom de l'article *
                 </label>
-                <input type="text" class="article-name form-input"
+                <input type="text" class="article-name form-input w-full"
                        placeholder="Ex: Consultation marketing" required>
             </div>
-            <div>
+            
+            <!-- Quantité -->
+            <div class="lg:col-span-2">
                 <label class="block text-sm font-medium text-gray-700 mb-2">
+                    <i class="fas fa-hashtag mr-1 text-green-500"></i>
                     Quantité *
                 </label>
-                <input type="number" class="article-quantity form-input"
-                       placeholder="1" min="1" required>
+                <div class="relative">
+                    <input type="number" class="article-quantity form-input w-full pr-8"
+                           placeholder="1" min="1" required>
+                    <div class="absolute right-2 top-1/2 transform -translate-y-1/2 flex flex-col">
+                        <button type="button" class="quantity-btn text-xs text-gray-500 hover:text-blue-500" onclick="adjustQuantity(this, 1)">
+                            <i class="fas fa-chevron-up"></i>
+                        </button>
+                        <button type="button" class="quantity-btn text-xs text-gray-500 hover:text-blue-500" onclick="adjustQuantity(this, -1)">
+                            <i class="fas fa-chevron-down"></i>
+                        </button>
+                    </div>
+                </div>
             </div>
-            <div>
+            
+            <!-- Prix unitaire -->
+            <div class="lg:col-span-3">
                 <label class="block text-sm font-medium text-gray-700 mb-2">
+                    <i class="fas fa-dollar-sign mr-1 text-purple-500"></i>
                     Prix unitaire (FCFA) *
                 </label>
-                <input type="number" class="article-price form-input"
+                <input type="number" class="article-price form-input w-full"
                        placeholder="0.00" step="0.01" min="0" required>
             </div>
-        </div>
-        <div class="flex justify-end mt-4">
-            <button type="button" class="remove-btn"
-                        onclick="removeArticle(this)">
-                <i class="fas fa-trash mr-2"></i>
-                Supprimer
+            
+            <!-- Actions -->
+            <div class="lg:col-span-1 flex justify-end">
+                <button type="button" class="remove-btn text-red-500 hover:text-red-700 p-2"
+                        onclick="removeArticle(this)" style="display: none;">
+                    <i class="fas fa-trash"></i>
                 </button>
+            </div>
+        </div>
+        
+        <!-- Total calculé -->
+        <div class="mt-4 pt-4 border-t border-gray-100">
+            <div class="flex justify-between items-center">
+                <span class="text-sm text-gray-600">Total pour cet article:</span>
+                <span class="article-total text-lg font-bold text-blue-600">0 FCFA</span>
+            </div>
         </div>
     `;
     
     container.appendChild(newArticle);
     articleCount++;
-    updatePreview();
+    
+    // Ajouter les événements
+    addArticleEvents(newArticle);
+    
+    // Afficher le bouton supprimer si plus d'un article
     updateRemoveButtons();
+    
+    // Mettre à jour la prévisualisation et le résumé
+    updatePreview();
+    updateArticlesSummary();
+    
+    // Focus sur le nom de l'article
+    const nameInput = newArticle.querySelector('.article-name');
+    nameInput.focus();
 }
 
 function removeArticle(button) {
     button.closest('.article-row').remove();
     updateRemoveButtons();
     updatePreview();
+    updateArticlesSummary();
+}
+
+// Ajuster la quantité avec les boutons +/-
+function adjustQuantity(button, change) {
+    const input = button.closest('.relative').querySelector('.article-quantity');
+    const currentValue = parseInt(input.value) || 1;
+    const newValue = Math.max(1, currentValue + change);
+    input.value = newValue;
+    
+    // Déclencher l'événement de calcul
+    const event = new Event('input', { bubbles: true });
+    input.dispatchEvent(event);
+}
+
+// Mettre à jour le résumé des articles
+function updateArticlesSummary() {
+    const articles = getArticlesData();
+    const totalArticles = articles.length;
+    const totalAmount = articles.reduce((sum, article) => sum + article.total, 0);
+    
+    document.getElementById('totalArticles').textContent = totalArticles;
+    document.getElementById('totalAmount').textContent = formatPrice(totalAmount);
+    
+    // Afficher/masquer le bouton dupliquer
+    const duplicateBtn = document.getElementById('duplicateLast');
+    if (totalArticles > 0) {
+        duplicateBtn.style.display = 'inline-flex';
+    } else {
+        duplicateBtn.style.display = 'none';
+    }
+}
+
+// Dupliquer le dernier article
+function duplicateLastArticle() {
+    const articles = getArticlesData();
+    if (articles.length === 0) return;
+    
+    const lastArticle = articles[articles.length - 1];
+    
+    // Ajouter un nouvel article
+    addArticle();
+    
+    // Remplir avec les données du dernier article
+    const newArticleRow = document.querySelector('.article-row:last-child');
+    const nameInput = newArticleRow.querySelector('.article-name');
+    const quantityInput = newArticleRow.querySelector('.article-quantity');
+    const priceInput = newArticleRow.querySelector('.article-price');
+    
+    nameInput.value = lastArticle.name + ' (copie)';
+    quantityInput.value = lastArticle.quantity;
+    priceInput.value = lastArticle.price;
+    
+    // Déclencher les événements de calcul
+    [nameInput, quantityInput, priceInput].forEach(input => {
+        const event = new Event('input', { bubbles: true });
+        input.dispatchEvent(event);
+    });
+}
+
+// Effacer tous les articles
+function clearAllArticles() {
+    if (confirm('Êtes-vous sûr de vouloir effacer tous les articles ?')) {
+        const container = document.getElementById('articlesContainer');
+        container.innerHTML = '';
+        
+        // Ajouter un article par défaut
+        addArticle();
+        
+        updatePreview();
+        updateArticlesSummary();
+    }
+}
+
+// Rechercher dans les articles
+function searchArticles() {
+    const searchTerm = document.getElementById('searchArticles').value.toLowerCase();
+    const articleRows = document.querySelectorAll('.article-row');
+    
+    articleRows.forEach(row => {
+        const nameInput = row.querySelector('.article-name');
+        const articleName = nameInput.value.toLowerCase();
+        
+        if (articleName.includes(searchTerm)) {
+            row.style.display = 'block';
+        } else {
+            row.style.display = 'none';
+        }
+    });
+}
+
+// Trier les articles par nom
+function sortArticlesByName() {
+    const container = document.getElementById('articlesContainer');
+    const articles = Array.from(container.children);
+    
+    articles.sort((a, b) => {
+        const nameA = a.querySelector('.article-name').value.toLowerCase();
+        const nameB = b.querySelector('.article-name').value.toLowerCase();
+        return nameA.localeCompare(nameB);
+    });
+    
+    articles.forEach(article => container.appendChild(article));
+}
+
+// Trier les articles par prix
+function sortArticlesByPrice() {
+    const container = document.getElementById('articlesContainer');
+    const articles = Array.from(container.children);
+    
+    articles.sort((a, b) => {
+        const priceA = parseFloat(a.querySelector('.article-price').value) || 0;
+        const priceB = parseFloat(b.querySelector('.article-price').value) || 0;
+        return priceB - priceA; // Décroissant
+    });
+    
+    articles.forEach(article => container.appendChild(article));
+}
+
+// Ajouter les événements à un article
+function addArticleEvents(articleRow) {
+    const nameInput = articleRow.querySelector('.article-name');
+    const quantityInput = articleRow.querySelector('.article-quantity');
+    const priceInput = articleRow.querySelector('.article-price');
+    const totalSpan = articleRow.querySelector('.article-total');
+    
+    // Fonction pour calculer le total de cet article
+    function calculateArticleTotal() {
+        const quantity = parseFloat(quantityInput.value) || 0;
+        const price = parseFloat(priceInput.value) || 0;
+        const total = quantity * price;
+        
+        if (totalSpan) {
+            totalSpan.textContent = formatPrice(total);
+        }
+        
+        // Mettre à jour la prévisualisation et le résumé
+        updatePreview();
+        updateArticlesSummary();
+    }
+    
+    // Événements sur les inputs
+    [nameInput, quantityInput, priceInput].forEach(input => {
+        input.addEventListener('input', calculateArticleTotal);
+        input.addEventListener('blur', calculateArticleTotal);
+    });
+    
+    // Calcul initial
+    calculateArticleTotal();
 }
 
 function updateRemoveButtons() {
@@ -610,6 +806,75 @@ function generatePDF() {
     const lightGray = [249, 250, 251];
     
     let yPosition = 20;
+    let currentPage = 1;
+    
+    // Fonction pour vérifier si on a besoin d'une nouvelle page
+    function checkNewPage(requiredSpace = 20) {
+        if (yPosition + requiredSpace > pageHeight - 50) {
+            doc.addPage();
+            currentPage++;
+            yPosition = 20;
+            
+            // Ajouter l'en-tête sur chaque nouvelle page
+            doc.setFillColor(...primaryBlue);
+            doc.rect(0, 0, pageWidth, 40, 'F');
+            
+            // Logo sur chaque page
+            if (invoiceData.logo) {
+                try {
+                    doc.setFillColor(255, 255, 255);
+                    doc.rect(20, 10, 30, 30, 'F');
+                    doc.setDrawColor(0, 0, 0);
+                    doc.setLineWidth(1);
+                    doc.rect(20, 10, 30, 30);
+                    doc.addImage(invoiceData.logo, 'PNG', 25, 15, 20, 20);
+                } catch (e) {
+                    doc.setFillColor(255, 255, 255);
+                    doc.rect(20, 10, 30, 30, 'F');
+                    doc.setDrawColor(0, 0, 0);
+                    doc.setLineWidth(1);
+                    doc.rect(20, 10, 30, 30);
+                    doc.setFontSize(16);
+                    doc.setFont('helvetica', 'bold');
+                    doc.setTextColor(...primaryBlue);
+                    doc.text(invoiceData.company.name.charAt(0), 35, 28, { align: 'center' });
+                }
+            }
+            
+            // Nom de l'entreprise
+            doc.setFontSize(14);
+            doc.setFont('helvetica', 'bold');
+            doc.setTextColor(255, 255, 255);
+            doc.text(invoiceData.company.name, 60, 20);
+            
+            // Titre FACTURE
+            doc.setFontSize(16);
+            doc.setFont('helvetica', 'bold');
+            doc.setTextColor(255, 255, 255);
+            doc.text('FACTURE', pageWidth - 20, 20, { align: 'right' });
+            
+            // Numéro de facture
+            doc.setFontSize(8);
+            doc.setFont('helvetica', 'bold');
+            doc.setTextColor(255, 255, 255);
+            const invoiceNumber = `FAC-${new Date().getFullYear()}-${String(invoiceCounter).padStart(4, '0')}`;
+            doc.text(`N° ${invoiceNumber}`, pageWidth - 20, 28, { align: 'right' });
+            
+            // Date
+            doc.setFontSize(7);
+            doc.setFont('helvetica', 'normal');
+            doc.setTextColor(255, 255, 255);
+            const currentDate = new Date().toLocaleDateString('fr-FR');
+            doc.text(`Date: ${currentDate}`, pageWidth - 20, 34, { align: 'right' });
+            
+            // Ligne de séparation
+            doc.setDrawColor(255, 255, 255);
+            doc.setLineWidth(1);
+            doc.line(0, 38, pageWidth, 38);
+            
+            yPosition = 50;
+        }
+    }
     
     // === EN-TÊTE CORPORATE PROFESSIONNEL ===
     // Fond bleu corporate
@@ -727,13 +992,17 @@ function generatePDF() {
     
     // === TABLEAU DES ARTICLES ===
     yPosition += 45;
-    drawArticlesTable(doc, invoiceData.articles, yPosition, pageWidth);
+    drawArticlesTable(doc, invoiceData.articles, yPosition, pageWidth, checkNewPage);
     
     // === RÉCAPITULATIF PROFESSIONNEL ===
     const articles = invoiceData.articles;
     const subtotal = articles.reduce((sum, article) => sum + article.total, 0);
     const remaining = Math.max(0, subtotal - invoiceData.payment.amountPaid);
-    const totalY = yPosition + (articles.length * 10) + 30;
+    
+    // Vérifier si on a besoin d'une nouvelle page pour le récapitulatif
+    checkNewPage(40);
+    
+    const totalY = yPosition + 20;
     
     // Conteneur récapitulatif
     doc.setFillColor(248, 250, 252);
@@ -793,7 +1062,7 @@ function generatePDF() {
 }
 
 // Dessiner le tableau des articles
-function drawArticlesTable(doc, articles, startY, pageWidth) {
+function drawArticlesTable(doc, articles, startY, pageWidth, checkNewPage) {
     let y = startY;
     
     // Titre section articles
@@ -829,6 +1098,11 @@ function drawArticlesTable(doc, articles, startY, pageWidth) {
     doc.setFont('helvetica', 'normal');
     doc.setFontSize(10);
     articles.forEach((article, index) => {
+        // Vérifier si on a besoin d'une nouvelle page pour cet article
+        if (checkNewPage) {
+            checkNewPage(15);
+        }
+        
         // Fond alterné plus visible
         if (index % 2 === 0) {
             doc.setFillColor(255, 255, 255);
