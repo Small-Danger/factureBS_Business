@@ -999,12 +999,14 @@ function generatePDF() {
     const subtotal = articles.reduce((sum, article) => sum + article.total, 0);
     const remaining = Math.max(0, subtotal - invoiceData.payment.amountPaid);
     
+    // Calculer la position après le tableau
+    const tableHeight = articles.length * 12 + 30; // Hauteur du tableau
+    const totalY = yPosition + tableHeight + 20; // Position après le tableau
+    
     // Vérifier si on a besoin d'une nouvelle page pour le récapitulatif
     checkNewPage(40);
     
-    const totalY = yPosition + 20;
-    
-    // Conteneur récapitulatif
+    // Conteneur récapitulatif - positionné en dessous du tableau
     doc.setFillColor(248, 250, 252);
     doc.rect(pageWidth - 100, totalY - 10, 80, 30, 'F');
     doc.setDrawColor(37, 99, 235);
