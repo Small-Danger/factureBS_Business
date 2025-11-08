@@ -1,0 +1,953 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Générateur de Reçu - BS International Express</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --dark-blue: #003a6b;
+            --mid-blue: #0e5aa7;
+            --light-blue: #1d8cd5;
+            --border-gray: #bfc5cc;
+            --text-gray: #444;
+            --bg-gray: #f2f4f7;
+        }
+
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            margin: 0;
+            padding: 24px;
+            font-family: 'Roboto', Arial, sans-serif;
+            background: var(--bg-gray);
+            color: var(--text-gray);
+        }
+
+        h1 {
+            margin: 0;
+        }
+
+        .app {
+            max-width: 1200px;
+            margin: 0 auto;
+            display: grid;
+            grid-template-columns: 360px 1fr;
+            gap: 24px;
+        }
+
+        .panel {
+            background: #fff;
+            border-radius: 14px;
+            box-shadow: 0 18px 35px -18px rgba(0, 58, 107, 0.45);
+            padding: 24px;
+        }
+
+        .panel h2 {
+            font-size: 1.15rem;
+            font-weight: 600;
+            margin: 0 0 16px;
+            color: var(--dark-blue);
+        }
+
+        .form-group {
+            display: flex;
+            flex-direction: column;
+            margin-bottom: 16px;
+        }
+
+        .form-group label {
+            font-size: 0.85rem;
+            font-weight: 600;
+            margin-bottom: 6px;
+            color: var(--dark-blue);
+        }
+
+        .form-group input,
+        .form-group textarea,
+        .form-group select {
+            padding: 10px 12px;
+            border: 1px solid var(--border-gray);
+            border-radius: 8px;
+            font-size: 0.9rem;
+            width: 100%;
+            background: #f9fbff;
+        }
+
+        .form-group textarea {
+            resize: vertical;
+            min-height: 90px;
+        }
+
+        .grid-two {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 12px;
+        }
+
+        .table-form-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin: 24px 0 12px;
+        }
+
+        .btn {
+            border: none;
+            border-radius: 8px;
+            padding: 10px 14px;
+            font-weight: 600;
+            font-size: 0.9rem;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, var(--mid-blue), var(--light-blue));
+            color: #fff;
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 8px 18px -12px rgba(14, 90, 167, 0.8);
+        }
+
+        .btn-secondary {
+            background: #fff;
+            color: var(--mid-blue);
+            border: 1px solid var(--mid-blue);
+        }
+
+        .items-table {
+            width: 100%;
+            border-spacing: 0;
+            border-collapse: collapse;
+        }
+
+        .items-table th,
+        .items-table td {
+            padding: 10px 6px;
+            font-size: 0.82rem;
+            text-align: left;
+        }
+
+        .items-table thead {
+            background: linear-gradient(135deg, var(--mid-blue), var(--light-blue));
+            color: #fff;
+        }
+
+        .items-table tbody tr:nth-child(even) {
+            background: #f6f8fb;
+        }
+
+        .items-table input {
+            width: 100%;
+            border: 1px solid var(--border-gray);
+            border-radius: 6px;
+            padding: 6px;
+            font-size: 0.82rem;
+            background: #fbfdff;
+        }
+
+        .items-table button {
+            padding: 6px 10px;
+            font-size: 0.78rem;
+        }
+
+        .items-table tbody tr + tr td {
+            border-top: 1px solid rgba(0, 58, 107, 0.15);
+        }
+
+        .preview-container {
+            position: relative;
+        }
+
+        .preview-actions {
+            position: sticky;
+            top: 0;
+            display: flex;
+            justify-content: flex-end;
+            gap: 12px;
+            margin-bottom: 12px;
+        }
+
+        .receipt-sheet {
+            background: #fff;
+            border-radius: 14px;
+            padding: 36px 38px;
+            box-shadow: 0 26px 45px -30px rgba(0, 58, 107, 0.8);
+            width: 100%;
+            max-width: 720px;
+            margin: 0 auto;
+            position: relative;
+        }
+
+        .watermark {
+            position: absolute;
+            inset: 50px;
+            opacity: 0.08;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            pointer-events: none;
+        }
+
+        .watermark span {
+            font-size: 72px;
+            font-weight: 700;
+            color: var(--mid-blue);
+        }
+
+        .receipt-header {
+            display: flex;
+            justify-content: space-between;
+        }
+
+        .left-header {
+            max-width: 55%;
+        }
+
+        .logo-tag {
+            display: inline-flex;
+            align-items: center;
+            gap: 10px;
+            padding: 10px 16px;
+            background: linear-gradient(135deg, var(--mid-blue), var(--light-blue));
+            color: #fff;
+            border-radius: 30px;
+            font-weight: 600;
+            font-size: 0.85rem;
+            letter-spacing: 0.02em;
+            margin-bottom: 14px;
+        }
+
+        .logo-circle {
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            background: #fff;
+            display: grid;
+            place-items: center;
+            color: var(--mid-blue);
+            font-weight: 700;
+        }
+
+        .contact-block {
+            border: 1.5px solid var(--mid-blue);
+            border-radius: 10px;
+            padding: 14px 16px;
+            background: rgba(13, 85, 156, 0.05);
+            font-size: 0.82rem;
+            line-height: 1.55;
+        }
+
+        .contact-block span {
+            display: block;
+            font-weight: 600;
+            color: var(--mid-blue);
+        }
+
+        .right-header {
+            max-width: 45%;
+            text-align: right;
+        }
+
+        .right-header h3 {
+            font-size: 1.05rem;
+            color: var(--mid-blue);
+            margin-bottom: 8px;
+            letter-spacing: 0.02em;
+        }
+
+        .info-table {
+            width: 100%;
+            border-spacing: 0;
+            border-collapse: collapse;
+        }
+
+        .info-table td {
+            padding: 4px 0;
+            font-size: 0.82rem;
+        }
+
+        .info-table td.label {
+            font-weight: 600;
+            color: var(--mid-blue);
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+
+        .section-title {
+            margin: 18px 0 8px;
+            font-size: 0.9rem;
+            font-weight: 700;
+            letter-spacing: 0.05em;
+            color: var(--mid-blue);
+        }
+
+        .data-table {
+            width: 100%;
+            border-spacing: 0;
+            border-collapse: collapse;
+            border: 1.5px solid var(--mid-blue);
+        }
+
+        .data-table th,
+        .data-table td {
+            padding: 8px 6px;
+            font-size: 0.8rem;
+            text-align: center;
+            border-bottom: 1px solid rgba(0, 58, 107, 0.2);
+        }
+
+        .data-table th {
+            text-transform: uppercase;
+            font-weight: 700;
+            color: #fff;
+            background: linear-gradient(135deg, var(--mid-blue), var(--light-blue));
+            letter-spacing: 0.05em;
+        }
+
+        .data-table td {
+            background: rgba(13, 85, 156, 0.03);
+        }
+
+        .data-table tbody tr:nth-child(even) td {
+            background: rgba(13, 85, 156, 0.08);
+        }
+
+        .status-block {
+            display: flex;
+            gap: 24px;
+            align-items: center;
+            margin: 24px 0 12px;
+            font-size: 0.85rem;
+        }
+
+        .checkbox-group {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .checkbox-box {
+            width: 18px;
+            height: 18px;
+            border: 2px solid var(--mid-blue);
+            display: grid;
+            place-items: center;
+            font-size: 12px;
+            font-weight: 700;
+            color: var(--mid-blue);
+        }
+
+        .signature-area {
+            margin-top: 36px;
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-end;
+        }
+
+        .signature-area .amounts {
+            font-size: 0.85rem;
+        }
+
+        .signature-area .amounts span {
+            display: block;
+            color: var(--mid-blue);
+            font-weight: 600;
+            line-height: 1.4;
+        }
+
+        .signature-area .signature {
+            text-align: right;
+            font-size: 0.82rem;
+        }
+
+        .signature-area .signature span {
+            display: block;
+            margin-top: 40px;
+            border-top: 1px solid rgba(0, 58, 107, 0.4);
+            padding-top: 6px;
+            color: var(--mid-blue);
+            font-weight: 600;
+        }
+
+        @media (max-width: 1080px) {
+            .app {
+                grid-template-columns: 1fr;
+            }
+
+            .preview-actions {
+                position: static;
+            }
+        }
+
+        @media print {
+            body {
+                background: #fff;
+                padding: 0;
+            }
+
+            .app {
+                display: block;
+            }
+
+            .panel {
+                display: none;
+            }
+
+            .preview-actions {
+                display: none;
+            }
+
+            .receipt-sheet {
+                box-shadow: none;
+                margin: 0;
+                width: 100%;
+                max-width: none;
+                border-radius: 0;
+            }
+        }
+    </style>
+</head>
+<body>
+    <main class="app">
+        <section class="panel">
+            <h2>Paramètres du reçu</h2>
+
+            <div class="form-group">
+                <label for="companyName">Nom de l'entreprise</label>
+                <input id="companyName" type="text" value="BS INTERNATIONAL EXPRESS" data-bind="company-name">
+            </div>
+
+            <div class="form-group">
+                <label for="companySubtitle">Sous-titre</label>
+                <input id="companySubtitle" type="text" value="Livraison Internationale Express" data-bind="company-subtitle">
+            </div>
+
+            <div class="form-group">
+                <label for="companyPhone">Téléphone</label>
+                <input id="companyPhone" type="text" value="+212 6 03042577 / +226 06 05 07 34 24 2" data-bind="company-phone">
+            </div>
+
+            <div class="form-group">
+                <label for="companyEmail">Email / Site web</label>
+                <input id="companyEmail" type="text" value="https://bsinternationales.com" data-bind="company-email">
+            </div>
+
+            <div class="form-group">
+                <label for="companyAddress">Adresse Maroc</label>
+                <textarea id="companyAddress" data-bind="company-address">Casablanca, Rue du Languedoc</textarea>
+            </div>
+
+            <div class="grid-two">
+                <div class="form-group">
+                    <label for="receiptDate">Date</label>
+                    <input id="receiptDate" type="date" data-bind="date">
+                </div>
+                <div class="form-group">
+                    <label for="receiptNumber">N° reçu</label>
+                    <input id="receiptNumber" type="text" value="0103" data-bind="receipt-number">
+                </div>
+            </div>
+
+            <div class="form-group">
+                <label for="provenance">Provenance</label>
+                <input id="provenance" type="text" value="Casablanca" data-bind="provenance">
+            </div>
+
+            <div class="form-group">
+                <label for="destination">Destination</label>
+                <input id="destination" type="text" value="Ouagadougou" data-bind="destination">
+            </div>
+
+            <div class="form-group">
+                <label for="sender">Expéditeur</label>
+                <input id="sender" type="text" value="BS International Express" data-bind="sender">
+            </div>
+
+            <div class="form-group">
+                <label for="recipient">Destinataire</label>
+                <input id="recipient" type="text" value="SANKARA NADIA BERNA" data-bind="recipient">
+            </div>
+
+            <div class="form-group">
+                <label for="recipientPhone">Téléphone destinataire</label>
+                <input id="recipientPhone" type="text" value="70786262" data-bind="recipient-phone">
+            </div>
+
+            <h2>Articles</h2>
+            <div class="table-form-header">
+                <span>Insérez les lignes du tableau</span>
+                <button id="addRow" class="btn btn-secondary" type="button">Ajouter une ligne</button>
+            </div>
+            <table class="items-table">
+                <thead>
+                    <tr>
+                        <th>Qté</th>
+                        <th>Désignation</th>
+                        <th>Poids</th>
+                        <th>Prix U</th>
+                        <th>Prix total</th>
+                        <th>Valeur</th>
+                        <th>A expédier</th>
+                        <th></th>
+                    </tr>
+                </thead>
+                <tbody id="itemsFormBody">
+                </tbody>
+            </table>
+
+            <div class="form-group">
+                <label for="amountDh">Montant (dirham)</label>
+                <input id="amountDh" type="number" step="0.01" value="5082" data-bind="amount-dh">
+            </div>
+
+            <div class="form-group">
+                <label for="amountCfa">Montant converti (FCFA)</label>
+                <input id="amountCfa" type="text" value="320166" data-bind="amount-cfa" data-auto="true" readonly>
+            </div>
+
+            <div class="form-group">
+                <label for="signature">Nom du signataire</label>
+                <input id="signature" type="text" value="Signature" data-bind="signature">
+            </div>
+
+            <div class="form-group">
+                <label for="notes">Notes / Observations</label>
+                <textarea id="notes" data-bind="notes"></textarea>
+            </div>
+        </section>
+
+        <section class="preview-container">
+            <div class="preview-actions">
+                <button id="resetDefaults" class="btn btn-secondary" type="button">Réinitialiser</button>
+                <button id="printReceipt" class="btn btn-primary" type="button">Imprimer / PDF</button>
+            </div>
+
+            <article class="receipt-sheet" id="receiptSheet">
+                <div class="watermark">
+                    <span>BS</span>
+                </div>
+                <header class="receipt-header">
+                    <div class="left-header">
+                        <div class="logo-tag">
+                            <div class="logo-circle">BS</div>
+                            <div>
+                                <div data-field="company-name">BS INTERNATIONAL EXPRESS</div>
+                                <small data-field="company-subtitle">Livraison Internationale Express</small>
+                            </div>
+                        </div>
+                        <div class="contact-block">
+                            <span>Téléphones</span>
+                            <div data-field="company-phone">+212 6 03042577 / +226 06 05 07 34 24 2</div>
+                            <span>Contacts</span>
+                            <div data-field="company-email">https://bsinternationales.com</div>
+                            <span>Adresse</span>
+                            <div data-field="company-address">Casablanca, Rue du Languedoc</div>
+                        </div>
+                    </div>
+                    <div class="right-header">
+                        <h3>Adresse Maroc</h3>
+                        <table class="info-table">
+                            <tr>
+                                <td class="label">Date :</td>
+                                <td data-field="date-label">05/08/2025</td>
+                            </tr>
+                            <tr>
+                                <td class="label">Provenance :</td>
+                                <td data-field="provenance">Casablanca</td>
+                            </tr>
+                            <tr>
+                                <td class="label">Destination :</td>
+                                <td data-field="destination">Ouagadougou</td>
+                            </tr>
+                            <tr>
+                                <td class="label">Expéditeur :</td>
+                                <td data-field="sender">BS International Express</td>
+                            </tr>
+                            <tr>
+                                <td class="label">Destinataire :</td>
+                                <td data-field="recipient">SANKARA NADIA BERNA</td>
+                            </tr>
+                            <tr>
+                                <td class="label">Téléphone :</td>
+                                <td data-field="recipient-phone">70786262</td>
+                            </tr>
+                            <tr>
+                                <td class="label">N° reçu :</td>
+                                <td data-field="receipt-number">0103</td>
+                            </tr>
+                        </table>
+                    </div>
+                </header>
+
+                <h4 class="section-title">Client</h4>
+                <table class="info-table">
+                    <tr>
+                        <td class="label">Nom :</td>
+                        <td data-field="recipient">SANKARA NADIA BERNA</td>
+                    </tr>
+                    <tr>
+                        <td class="label">Téléphone :</td>
+                        <td data-field="recipient-phone">70786262</td>
+                    </tr>
+                </table>
+
+                <h4 class="section-title">Description de l'envoi</h4>
+                <table class="data-table">
+                    <thead>
+                        <tr>
+                            <th>Quantité</th>
+                            <th>Désignation</th>
+                            <th>Poids (kg)</th>
+                            <th>Prix U</th>
+                            <th>Prix Total</th>
+                            <th>Valeur</th>
+                            <th>A Expédier</th>
+                        </tr>
+                    </thead>
+                    <tbody id="previewItems">
+                    </tbody>
+                </table>
+
+                <div class="status-block">
+                    <div class="checkbox-group">
+                        <div class="checkbox-box" data-field="paid-box"></div>
+                        <span>Payé</span>
+                    </div>
+                    <div class="checkbox-group">
+                        <div class="checkbox-box" data-field="unpaid-box">X</div>
+                        <span>Non payé</span>
+                    </div>
+                </div>
+
+                <div class="signature-area">
+                    <div class="amounts">
+                        <span data-field="amount-dh">5 082 DH</span>
+                        <span data-field="amount-cfa">319 536 F / 193 536 F</span>
+                    </div>
+                    <div class="signature">
+                        <div data-field="notes"></div>
+                        <span data-field="signature">Signature</span>
+                    </div>
+                </div>
+            </article>
+        </section>
+    </main>
+
+    <script>
+        const defaults = {
+            "company-name": "BS INTERNATIONAL EXPRESS",
+            "company-subtitle": "Livraison Internationale Express",
+            "company-phone": "+212 6 03042577 / +226 06 05 07 34 24 2",
+            "company-email": "https://bsinternationales.com",
+            "company-address": "Casablanca, Rue du Languedoc",
+            "date": "",
+            "date-label": "05/08/2025",
+            "provenance": "Casablanca",
+            "destination": "Ouagadougou",
+            "sender": "BS International Express",
+            "recipient": "SANKARA NADIA BERNA",
+            "recipient-phone": "70786262",
+            "receipt-number": "0103",
+            "amount-dh": "5082",
+            "amount-cfa": "320166",
+            "signature": "Signature",
+            "notes": "",
+            paid: false
+        };
+
+        const fields = {};
+
+        function sanitizeNumber(value) {
+            if (value === null || value === undefined) return '';
+            return String(value).replace(/[^\d.,-]/g, '').replace(',', '.');
+        }
+
+        function formatNumber(value) {
+            if (!Number.isFinite(value)) return '';
+            const rounded = Math.round((value + Number.EPSILON) * 100) / 100;
+            const hasDecimals = !Number.isInteger(rounded);
+            return new Intl.NumberFormat('fr-FR', {
+                minimumFractionDigits: hasDecimals ? 2 : 0,
+                maximumFractionDigits: hasDecimals ? 2 : 0
+            }).format(rounded);
+        }
+
+        function formatCurrency(value, suffix) {
+            if (!Number.isFinite(value)) return '';
+            return `${formatNumber(value)} ${suffix}`;
+        }
+
+        function syncAmountCfa(value) {
+            const amountCfaField = fields['amount-cfa'];
+            if (!amountCfaField) {
+                updateField('amount-cfa', Number.isFinite(value) ? formatCurrency(value, 'F CFA') : '');
+                return;
+            }
+
+            if (!Number.isFinite(value) || value < 0) {
+                amountCfaField.value = '';
+                updateField('amount-cfa', '');
+                return;
+            }
+
+            const normalized = Math.round((value + Number.EPSILON) * 100) / 100;
+            amountCfaField.value = formatNumber(normalized);
+            updateField('amount-cfa', formatCurrency(normalized, 'F CFA'));
+        }
+
+        function handleAmountDhChange(rawValue) {
+            const numericValue = parseFloat(sanitizeNumber(rawValue));
+            if (!Number.isFinite(numericValue) || numericValue < 0) {
+                updateField('amount-dh', '');
+                syncAmountCfa(NaN);
+                return;
+            }
+
+            updateField('amount-dh', formatCurrency(numericValue, 'DH'));
+            syncAmountCfa(numericValue * 63);
+        }
+
+        const bindings = document.querySelectorAll('[data-bind]');
+
+        bindings.forEach(input => {
+            const key = input.dataset.bind;
+            fields[key] = input;
+
+            if (defaults[key] !== undefined && !input.value) {
+                input.value = defaults[key];
+            }
+
+            if (input.dataset.auto === 'true') {
+                if (key === 'amount-cfa') {
+                    const dhField = fields['amount-dh'];
+                    const dhValue = dhField ? parseFloat(sanitizeNumber(dhField.value)) : NaN;
+                    const fallback = parseFloat(sanitizeNumber(input.value || defaults[key]));
+                    const initial = Number.isFinite(dhValue) ? dhValue * 63 : fallback;
+                    syncAmountCfa(initial);
+                } else {
+                    updateField(key, input.value);
+                }
+                return;
+            }
+
+            if (key === 'amount-dh') {
+                const initialValue = input.value || defaults[key] || '';
+                input.value = sanitizeNumber(initialValue);
+                handleAmountDhChange(input.value);
+                input.addEventListener('input', () => handleAmountDhChange(input.value));
+                return;
+            }
+
+            input.addEventListener('input', () => {
+                updateField(key, input.value);
+            });
+
+            if (input.type === 'date') {
+                input.addEventListener('change', () => {
+                    const formatted = formatDate(input.value);
+                    updateField('date-label', formatted || defaults['date-label']);
+                });
+                if (input.value) {
+                    updateField('date-label', formatDate(input.value));
+                }
+            } else {
+                updateField(key, input.value);
+            }
+        });
+
+        if (fields['amount-dh']) {
+            handleAmountDhChange(fields['amount-dh'].value);
+        }
+
+        function updateField(fieldKey, value) {
+            document.querySelectorAll(`[data-field="${fieldKey}"]`).forEach(element => {
+                element.textContent = value;
+            });
+        }
+
+        function formatDate(value) {
+            if (!value) return '';
+            const [year, month, day] = value.split('-');
+            if (!year || !month || !day) return '';
+            return `${day}/${month}/${year}`;
+        }
+
+        const itemTemplate = () => ({
+            quantity: '',
+            description: '',
+            weight: '',
+            unitPrice: '',
+            totalPrice: '',
+            value: '',
+            toShip: ''
+        });
+
+        let items = [
+            {
+                quantity: '2',
+                description: 'Carton purifie',
+                weight: '30',
+                unitPrice: '50.22',
+                totalPrice: '73 000 Dh',
+                value: 'RAV',
+                toShip: 'A Expédier'
+            },
+            {
+                quantity: '4',
+                description: 'Carton mixte',
+                weight: '',
+                unitPrice: '',
+                totalPrice: '',
+                value: '',
+                toShip: ''
+            }
+        ];
+
+        const formBody = document.getElementById('itemsFormBody');
+        const previewBody = document.getElementById('previewItems');
+
+        function renderFormRows() {
+            formBody.innerHTML = '';
+            items.forEach((item, index) => {
+                const row = document.createElement('tr');
+                row.innerHTML = `
+                    <td><input type="text" value="${item.quantity}" data-item="${index}" data-key="quantity"></td>
+                    <td><input type="text" value="${item.description}" data-item="${index}" data-key="description"></td>
+                    <td><input type="text" value="${item.weight}" data-item="${index}" data-key="weight"></td>
+                    <td><input type="text" value="${item.unitPrice}" data-item="${index}" data-key="unitPrice"></td>
+                    <td><input type="text" value="${item.totalPrice}" data-item="${index}" data-key="totalPrice"></td>
+                    <td><input type="text" value="${item.value}" data-item="${index}" data-key="value"></td>
+                    <td><input type="text" value="${item.toShip}" data-item="${index}" data-key="toShip"></td>
+                    <td>
+                        <button class="btn btn-secondary" type="button" data-remove="${index}">Supprimer</button>
+                    </td>
+                `;
+                formBody.appendChild(row);
+            });
+        }
+
+        function renderPreviewRows() {
+            if (!items.length) {
+                previewBody.innerHTML = '<tr><td colspan="7" style="padding: 16px; background: rgba(13,85,156,0.05); font-size: 0.85rem;">Aucun article</td></tr>';
+                return;
+            }
+
+            previewBody.innerHTML = items.map(item => `
+                <tr>
+                    <td>${item.quantity || ''}</td>
+                    <td style="text-align:left; padding-left:12px;">${item.description || ''}</td>
+                    <td>${item.weight || ''}</td>
+                    <td>${item.unitPrice || ''}</td>
+                    <td>${item.totalPrice || ''}</td>
+                    <td>${item.value || ''}</td>
+                    <td>${item.toShip || ''}</td>
+                </tr>
+            `).join('');
+        }
+
+        formBody.addEventListener('input', (event) => {
+            const target = event.target;
+            const idx = target.dataset.item;
+            const key = target.dataset.key;
+            if (idx === undefined || !key) return;
+            items[idx][key] = target.value;
+            renderPreviewRows();
+        });
+
+        formBody.addEventListener('click', (event) => {
+            const button = event.target.closest('button[data-remove]');
+            if (!button) return;
+            const idx = Number(button.dataset.remove);
+            items.splice(idx, 1);
+            renderFormRows();
+            renderPreviewRows();
+        });
+
+        document.getElementById('addRow').addEventListener('click', () => {
+            items.push(itemTemplate());
+            renderFormRows();
+            renderPreviewRows();
+        });
+
+        const paidBox = document.querySelector('[data-field="paid-box"]');
+        const unpaidBox = document.querySelector('[data-field="unpaid-box"]');
+
+        paidBox.addEventListener('click', () => {
+            const checked = paidBox.textContent === 'X';
+            paidBox.textContent = checked ? '' : 'X';
+            unpaidBox.textContent = checked ? 'X' : '';
+        });
+
+        unpaidBox.addEventListener('click', () => {
+            const checked = unpaidBox.textContent === 'X';
+            unpaidBox.textContent = checked ? '' : 'X';
+            paidBox.textContent = checked ? 'X' : '';
+        });
+
+        document.getElementById('resetDefaults').addEventListener('click', () => {
+            Object.entries(defaults).forEach(([key, value]) => {
+                if (key === 'amount-dh') {
+                    if (fields[key]) {
+                        fields[key].value = value;
+                    }
+                    handleAmountDhChange(value);
+                    return;
+                }
+
+                if (key === 'amount-cfa') {
+                    syncAmountCfa(parseFloat(sanitizeNumber(value)));
+                    return;
+                }
+
+                if (fields[key]) {
+                    fields[key].value = value;
+                }
+                updateField(key, value);
+            });
+
+            document.querySelector('[data-field="date-label"]').textContent = defaults['date-label'];
+            paidBox.textContent = '';
+            unpaidBox.textContent = 'X';
+            items = [
+                {
+                    quantity: '2',
+                    description: 'Carton purifie',
+                    weight: '30',
+                    unitPrice: '50.22',
+                    totalPrice: '73 000 Dh',
+                    value: 'RAV',
+                    toShip: 'A Expédier'
+                },
+                {
+                    quantity: '4',
+                    description: 'Carton mixte',
+                    weight: '',
+                    unitPrice: '',
+                    totalPrice: '',
+                    value: '',
+                    toShip: ''
+                }
+            ];
+            renderFormRows();
+            renderPreviewRows();
+        });
+
+        document.getElementById('printReceipt').addEventListener('click', () => {
+            window.print();
+        });
+
+        renderFormRows();
+        renderPreviewRows();
+    </script>
+</body>
+</html>
+
