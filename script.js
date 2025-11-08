@@ -7,13 +7,30 @@ const DEFAULT_CONFIG = {
         email: "",
         website: ""
     },
-    logo: null
+    logo: null,
+    currency: 'XOF'
+};
+
+const CURRENCIES = {
+    XOF: {
+        code: 'XOF',
+        symbol: 'FCFA',
+        name: 'Franc CFA',
+        decimals: 0
+    },
+    MAD: {
+        code: 'MAD',
+        symbol: 'MAD',
+        name: 'Dirham marocain',
+        decimals: 2
+    }
 };
 
 // Variables globales
 let articleCount = 1;
 let invoiceCounter = 1;
 let currentTab = 'client';
+let currentCurrency = DEFAULT_CONFIG.currency;
 
 // Initialisation
 document.addEventListener('DOMContentLoaded', function() {
@@ -39,21 +56,69 @@ function initializeApp() {
 // Charger les paramètres depuis localStorage
 function loadSettings() {
     const savedSettings = localStorage.getItem('invoiceSettings');
+    let settings = {};
+
     if (savedSettings) {
-        const settings = JSON.parse(savedSettings);
-        if (settings.company) {
-            document.getElementById('companyName').value = settings.company.name || '';
-            document.getElementById('companyPhone').value = settings.company.phone || '';
-            document.getElementById('companyAddress').value = settings.company.address || '';
-            document.getElementById('companyEmail').value = settings.company.email || '';
-            document.getElementById('companyWebsite').value = settings.company.website || '';
-        }
-        if (settings.logo) {
-            document.getElementById('logoPreview').src = settings.logo;
-            document.getElementById('logoPreview').style.display = 'block';
-            document.getElementById('logoPreview').classList.add('has-logo');
+        try {
+            settings = JSON.parse(savedSettings) || {};
+        } catch (error) {
+            console.error('Erreur lors du chargement des paramètres:', error);
+            settings = {};
         }
     }
+
+    if (settings.company) {
+        document.getElementById('companyName').value = settings.company.name || '';
+        document.getElementById('companyPhone').value = settings.company.phone || '';
+        document.getElementById('companyAddress').value = settings.company.address || '';
+        document.getElementById('companyEmail').value = settings.company.email || '';
+        document.getElementById('companyWebsite').value = settings.company.website || '';
+    }
+
+    if (settings.logo) {
+        document.getElementById('logoPreview').src = settings.logo;
+        document.getElementById('logoPreview').style.display = 'block';
+        document.getElementById('logoPreview').classList.add('has-logo');
+    }
+
+    currentCurrency = settings.currency || DEFAULT_CONFIG.currency;
+
+    const currencySelect = document.getElementById('currencySelect');
+    if (currencySelect) {
+        currencySelect.value = currentCurrency;
+    }
+
+    applyCurrencyToUI();
+}
+
+function getCurrencyConfig(code = currentCurrency) {
+    return CURRENCIES[code] || CURRENCIES[DEFAULT_CONFIG.currency];
+}
+
+function applyCurrencyToUI() {
+    const currency = getCurrencyConfig();
+    
+    document.querySelectorAll('[data-currency-symbol]').forEach(element => {
+        element.textContent = currency.symbol;
+    });
+    
+    refreshArticleTotals();
+    updatePreview();
+    updateArticlesSummary();
+}
+
+function refreshArticleTotals() {
+    const articleRows = document.querySelectorAll('.article-row');
+    
+    articleRows.forEach(row => {
+        const quantity = parseFloat(row.querySelector('.article-quantity')?.value) || 0;
+        const price = parseFloat(row.querySelector('.article-price')?.value) || 0;
+        const totalSpan = row.querySelector('.article-total');
+        
+        if (totalSpan) {
+            totalSpan.textContent = formatPrice(quantity * price);
+        }
+    });
 }
 
 // Sauvegarder les paramètres dans localStorage
@@ -171,6 +236,7 @@ function handleLogoUpload(event) {
 
 // Gestion des modals
 function openSettings() {
+    loadSettings();
     document.getElementById('settingsModal').classList.remove('hidden');
 }
 
@@ -204,6 +270,9 @@ function saveSettings() {
     }
     
     // Sauvegarder les paramètres
+    const currencySelect = document.getElementById('currencySelect');
+    const selectedCurrency = currencySelect ? currencySelect.value : DEFAULT_CONFIG.currency;
+
     const settings = {
         company: {
             name: companyName,
@@ -212,10 +281,14 @@ function saveSettings() {
             email: document.getElementById('companyEmail').value.trim(),
             website: document.getElementById('companyWebsite').value.trim()
         },
-        logo: document.getElementById('logoPreview').src || null
+        logo: document.getElementById('logoPreview').src || null,
+        currency: selectedCurrency
     };
     
     localStorage.setItem('invoiceSettings', JSON.stringify(settings));
+    
+    currentCurrency = selectedCurrency;
+    applyCurrencyToUI();
     
     // Fermer la modal
     closeSettingsModal();
@@ -269,7 +342,7 @@ function addArticle() {
             <div class="lg:col-span-3">
                 <label class="block text-sm font-medium text-gray-700 mb-2">
                     <i class="fas fa-dollar-sign mr-1 text-purple-500"></i>
-                    Prix unitaire (FCFA) *
+                    Prix unitaire (<span data-currency-symbol>${getCurrencyConfig().symbol}</span>) *
                 </label>
                 <input type="number" class="article-price form-input w-full"
                        placeholder="0.00" step="0.01" min="0" required>
@@ -288,7 +361,7 @@ function addArticle() {
         <div class="mt-4 pt-4 border-t border-gray-100">
             <div class="flex justify-between items-center">
                 <span class="text-sm text-gray-600">Total pour cet article:</span>
-                <span class="article-total text-lg font-bold text-blue-600">0 FCFA</span>
+                <span class="article-total text-lg font-bold text-blue-600">${formatPrice(0)}</span>
             </div>
         </div>
     `;
@@ -373,6 +446,54 @@ function duplicateLastArticle() {
         const event = new Event('input', { bubbles: true });
         input.dispatchEvent(event);
     });
+}
+
+// Fonction pour créer des articles de test (pour tester la pagination)
+function createTestArticles() {
+    if (confirm('Créer 15 articles de test pour vérifier la pagination ?')) {
+        const testArticles = [
+            { name: 'Consultation marketing digital', quantity: 2, price: 25000 },
+            { name: 'Développement site web', quantity: 1, price: 150000 },
+            { name: 'Formation SEO', quantity: 3, price: 45000 },
+            { name: 'Maintenance serveur', quantity: 1, price: 75000 },
+            { name: 'Design logo professionnel', quantity: 1, price: 35000 },
+            { name: 'Rédaction contenu web', quantity: 10, price: 5000 },
+            { name: 'Audit sécurité informatique', quantity: 1, price: 120000 },
+            { name: 'Configuration email professionnel', quantity: 2, price: 25000 },
+            { name: 'Formation WordPress', quantity: 4, price: 30000 },
+            { name: 'Optimisation base de données', quantity: 1, price: 80000 },
+            { name: 'Intégration API tierces', quantity: 3, price: 40000 },
+            { name: 'Sauvegarde automatique', quantity: 1, price: 15000 },
+            { name: 'Monitoring 24/7', quantity: 1, price: 60000 },
+            { name: 'Support technique', quantity: 5, price: 20000 },
+            { name: 'Migration données', quantity: 1, price: 90000 }
+        ];
+        
+        // Effacer les articles existants
+        clearAllArticles();
+        
+        // Ajouter tous les articles de test
+        testArticles.forEach(articleData => {
+            addArticle();
+            
+            const newArticleRow = document.querySelector('.article-row:last-child');
+            const nameInput = newArticleRow.querySelector('.article-name');
+            const quantityInput = newArticleRow.querySelector('.article-quantity');
+            const priceInput = newArticleRow.querySelector('.article-price');
+            
+            nameInput.value = articleData.name;
+            quantityInput.value = articleData.quantity;
+            priceInput.value = articleData.price;
+            
+            // Déclencher les événements de calcul
+            [nameInput, quantityInput, priceInput].forEach(input => {
+                const event = new Event('input', { bubbles: true });
+                input.dispatchEvent(event);
+            });
+        });
+        
+        showSuccessMessage('15 articles de test créés ! Vous pouvez maintenant tester la pagination PDF.');
+    }
 }
 
 // Effacer tous les articles
@@ -589,13 +710,17 @@ function updatePaymentStatus(subtotal, amountPaid) {
 
 // Formater le prix
 function formatPrice(amount) {
-    // Formater le nombre sans espaces ni slashes
-    const formatted = Math.round(amount).toLocaleString('fr-FR', {
-        minimumFractionDigits: 0,
-        maximumFractionDigits: 0,
+    const currency = getCurrencyConfig();
+    const decimals = typeof currency.decimals === 'number' ? currency.decimals : 0;
+    const value = Number.isFinite(amount) ? amount : 0;
+    
+    const formatted = value.toLocaleString('fr-FR', {
+        minimumFractionDigits: decimals,
+        maximumFractionDigits: decimals,
         useGrouping: false
     });
-    return formatted + ' FCFA';
+    
+    return `${formatted} ${currency.symbol}`;
 }
 
 // Prévisualiser la facture
@@ -614,6 +739,7 @@ function previewInvoice() {
 // Obtenir les données de la facture
 function getInvoiceData() {
     const settings = JSON.parse(localStorage.getItem('invoiceSettings') || '{}');
+    const currency = getCurrencyConfig(settings.currency || currentCurrency);
     
     return {
         company: settings.company || DEFAULT_CONFIG.company,
@@ -627,6 +753,11 @@ function getInvoiceData() {
         payment: {
             amountPaid: parseFloat(document.getElementById('amountPaid').value) || 0,
             status: document.getElementById('paymentStatus').value
+        },
+        currency: {
+            code: currency.code,
+            symbol: currency.symbol,
+            name: currency.name
         }
     };
 }
@@ -671,6 +802,7 @@ function generateInvoiceHTML(data) {
                         <div class="bg-white bg-opacity-20 p-4 rounded-lg">
                             <p class="text-lg font-semibold">N° ${invoiceNumber}</p>
                             <p class="text-sm">Date: ${currentDate}</p>
+                            <p class="text-sm mt-1">Devise: ${data.currency.name} (${data.currency.symbol})</p>
                         </div>
                     </div>
                 </div>
@@ -810,10 +942,15 @@ function generatePDF() {
     
     // Fonction pour vérifier si on a besoin d'une nouvelle page
     function checkNewPage(requiredSpace = 20) {
+        // Obtenir la position actuelle sur la page
+        const currentPageInfo = doc.internal.getCurrentPageInfo();
+        const currentY = doc.internal.getCurrentPageInfo().pageNumber === 1 ? yPosition : yPosition;
+        
+        // Vérifier si on a besoin d'une nouvelle page
         if (yPosition + requiredSpace > pageHeight - 50) {
             doc.addPage();
             currentPage++;
-            yPosition = 20;
+            yPosition = 50; // Position après l'en-tête
             
             // Ajouter l'en-tête sur chaque nouvelle page
             doc.setFillColor(...primaryBlue);
@@ -866,14 +1003,15 @@ function generatePDF() {
             doc.setTextColor(255, 255, 255);
             const currentDate = new Date().toLocaleDateString('fr-FR');
             doc.text(`Date: ${currentDate}`, pageWidth - 20, 34, { align: 'right' });
+            doc.text(`Devise: ${invoiceData.currency.name} (${invoiceData.currency.symbol})`, pageWidth - 20, 40, { align: 'right' });
             
             // Ligne de séparation
             doc.setDrawColor(255, 255, 255);
             doc.setLineWidth(1);
             doc.line(0, 38, pageWidth, 38);
-            
-            yPosition = 50;
         }
+        
+        return yPosition;
     }
     
     // === EN-TÊTE CORPORATE PROFESSIONNEL ===
@@ -955,6 +1093,7 @@ function generatePDF() {
     doc.setTextColor(255, 255, 255);
     const currentDate = new Date().toLocaleDateString('fr-FR');
     doc.text(`Date: ${currentDate}`, pageWidth - 20, 42, { align: 'right' });
+    doc.text(`Devise: ${invoiceData.currency.name} (${invoiceData.currency.symbol})`, pageWidth - 20, 49, { align: 'right' });
     
     // Ligne de séparation
     doc.setDrawColor(255, 255, 255);
@@ -992,53 +1131,58 @@ function generatePDF() {
     
     // === TABLEAU DES ARTICLES ===
     yPosition += 45;
-    drawArticlesTable(doc, invoiceData.articles, yPosition, pageWidth, checkNewPage);
+    const finalYPosition = drawArticlesTable(doc, invoiceData.articles, yPosition, pageWidth, checkNewPage);
     
     // === RÉCAPITULATIF PROFESSIONNEL ===
     const articles = invoiceData.articles;
     const subtotal = articles.reduce((sum, article) => sum + article.total, 0);
     const remaining = Math.max(0, subtotal - invoiceData.payment.amountPaid);
     
-    // Calculer la position après le tableau
-    const tableHeight = articles.length * 12 + 30; // Hauteur du tableau
-    const totalY = yPosition + tableHeight + 20; // Position après le tableau
+    // Position après le tableau - utiliser la position retournée par drawArticlesTable
+    let summaryY = finalYPosition + 20;
     
     // Vérifier si on a besoin d'une nouvelle page pour le récapitulatif
     checkNewPage(40);
     
+    // Si on a changé de page, repositionner le récapitulatif
+    const currentPageInfo = doc.internal.getCurrentPageInfo();
+    if (currentPageInfo.pageNumber > 1) {
+        summaryY = 100; // Position sur nouvelle page
+    }
+    
     // Conteneur récapitulatif - positionné en dessous du tableau
     doc.setFillColor(248, 250, 252);
-    doc.rect(pageWidth - 100, totalY - 10, 80, 30, 'F');
+    doc.rect(pageWidth - 100, summaryY - 10, 80, 35, 'F');
     doc.setDrawColor(37, 99, 235);
     doc.setLineWidth(3);
-    doc.line(pageWidth - 100, totalY - 10, pageWidth - 100, totalY + 20);
+    doc.line(pageWidth - 100, summaryY - 10, pageWidth - 100, summaryY + 25);
     
     // Titre récapitulatif
     doc.setFontSize(11);
     doc.setFont('helvetica', 'bold');
     doc.setTextColor(0, 0, 0);
-    doc.text('RECAPITULATIF', pageWidth - 95, totalY - 5);
+    doc.text('RECAPITULATIF', pageWidth - 95, summaryY - 5);
     
     doc.setFontSize(9);
     doc.setFont('helvetica', 'normal');
     doc.setTextColor(0, 0, 0);
     
     // Ligne sous-total
-    doc.text('Sous-total:', pageWidth - 95, totalY + 3);
-    doc.text(formatPrice(subtotal), pageWidth - 15, totalY + 3, { align: 'right' });
+    doc.text('Sous-total:', pageWidth - 95, summaryY + 3);
+    doc.text(formatPrice(subtotal), pageWidth - 15, summaryY + 3, { align: 'right' });
     
     // Ligne montant payé
-    doc.text('Montant payé:', pageWidth - 95, totalY + 8);
-    doc.text(formatPrice(invoiceData.payment.amountPaid), pageWidth - 15, totalY + 8, { align: 'right' });
+    doc.text('Montant payé:', pageWidth - 95, summaryY + 8);
+    doc.text(formatPrice(invoiceData.payment.amountPaid), pageWidth - 15, summaryY + 8, { align: 'right' });
     
     // Ligne reste à payer (en gras et bleu)
     doc.setFillColor(37, 99, 235);
-    doc.rect(pageWidth - 100, totalY + 12, 80, 6, 'F');
+    doc.rect(pageWidth - 100, summaryY + 12, 80, 8, 'F');
     doc.setFont('helvetica', 'bold');
     doc.setFontSize(10);
     doc.setTextColor(255, 255, 255);
-    doc.text('RESTE A PAYER:', pageWidth - 95, totalY + 16);
-    doc.text(formatPrice(remaining), pageWidth - 15, totalY + 16, { align: 'right' });
+    doc.text('RESTE A PAYER:', pageWidth - 95, summaryY + 17);
+    doc.text(formatPrice(remaining), pageWidth - 15, summaryY + 17, { align: 'right' });
     
     // === PIED DE PAGE ===
     const footerY = pageHeight - 30;
@@ -1066,6 +1210,32 @@ function generatePDF() {
 // Dessiner le tableau des articles
 function drawArticlesTable(doc, articles, startY, pageWidth, checkNewPage) {
     let y = startY;
+    let currentPage = 1;
+    
+    // Fonction pour dessiner l'en-tête du tableau
+    function drawTableHeader(doc, pageWidth, y) {
+        // En-tête du tableau avec dégradé
+        doc.setFontSize(10);
+        doc.setFont('helvetica', 'bold');
+        doc.setTextColor(255, 255, 255);
+        
+        // Fond bleu dégradé pour l'en-tête
+        doc.setFillColor(37, 99, 235);
+        doc.rect(20, y - 10, pageWidth - 40, 12, 'F');
+        
+        // Bordures épaisses
+        doc.setDrawColor(37, 99, 235);
+        doc.setLineWidth(2);
+        doc.rect(20, y - 10, pageWidth - 40, 12);
+        
+        // En-têtes des colonnes en majuscules
+        doc.text('DESIGNATION', 25, y);
+        doc.text('QTÉ', 100, y);
+        doc.text('PRIX UNIT.', 130, y);
+        doc.text('TOTAL', pageWidth - 25, y, { align: 'right' });
+        
+        return y + 12;
+    }
     
     // Titre section articles
     doc.setFontSize(14);
@@ -1074,35 +1244,25 @@ function drawArticlesTable(doc, articles, startY, pageWidth, checkNewPage) {
     doc.text('DETAILS DE LA COMMANDE', 20, y);
     y += 12;
     
-    // En-tête du tableau avec dégradé
-    doc.setFontSize(10);
-    doc.setFont('helvetica', 'bold');
-    doc.setTextColor(255, 255, 255);
-    
-    // Fond bleu dégradé pour l'en-tête
-    doc.setFillColor(37, 99, 235);
-    doc.rect(20, y - 10, pageWidth - 40, 12, 'F');
-    
-    // Bordures épaisses
-    doc.setDrawColor(37, 99, 235);
-    doc.setLineWidth(2);
-    doc.rect(20, y - 10, pageWidth - 40, 12);
-    
-    // En-têtes des colonnes en majuscules
-    doc.text('DESIGNATION', 25, y);
-    doc.text('QTÉ', 100, y);
-    doc.text('PRIX UNIT.', 130, y);
-    doc.text('TOTAL', pageWidth - 25, y, { align: 'right' });
-    
-    y += 12;
+    // Dessiner l'en-tête du tableau
+    y = drawTableHeader(doc, pageWidth, y);
     
     // Articles avec design amélioré
     doc.setFont('helvetica', 'normal');
     doc.setFontSize(10);
+    
     articles.forEach((article, index) => {
         // Vérifier si on a besoin d'une nouvelle page pour cet article
+        // On laisse 40px de marge en bas pour le récapitulatif
         if (checkNewPage) {
             checkNewPage(15);
+        }
+        
+        // Si on a changé de page, redessiner l'en-tête du tableau
+        if (currentPage !== doc.internal.getCurrentPageInfo().pageNumber) {
+            currentPage = doc.internal.getCurrentPageInfo().pageNumber;
+            y = 60; // Position après l'en-tête de page
+            y = drawTableHeader(doc, pageWidth, y);
         }
         
         // Fond alterné plus visible
@@ -1122,7 +1282,13 @@ function drawArticlesTable(doc, articles, startY, pageWidth, checkNewPage) {
         // Contenu avec styles améliorés
         doc.setTextColor(0, 0, 0);
         doc.setFont('helvetica', 'bold');
-        doc.text(article.name, 25, y);
+        
+        // Gérer les noms d'articles trop longs
+        let articleName = article.name;
+        if (articleName.length > 35) {
+            articleName = articleName.substring(0, 32) + '...';
+        }
+        doc.text(articleName, 25, y);
         
         // Quantité simple
         doc.setTextColor(0, 0, 0);
@@ -1137,6 +1303,8 @@ function drawArticlesTable(doc, articles, startY, pageWidth, checkNewPage) {
         
         y += 12;
     });
+    
+    return y;
 }
 
 // Valider le formulaire
